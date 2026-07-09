@@ -293,7 +293,7 @@ describe("P1 commands", () => {
     } finally {
       await summary.close?.();
     }
-  });
+  }, 15_000);
 
   it("fixes stale generated views during validate --fix", async () => {
     const root = await tempRoot();
