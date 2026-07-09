@@ -7,7 +7,7 @@
 - Added the `specmarten` CLI for project-level OpenSpec roadmap, status, dashboard, drift-check, and maintenance workflows.
 - Added client-first Codex skills and Claude Code commands for planning, backfill, maintenance, drift checks, status, and end-to-end task execution.
 - Added deterministic commands for `status`, `next`, `maintain`, `reconcile`, `closeout`, `baseline refresh`, `validate --fix`, `dashboard --build`, and generated view rendering.
-- Added copyable CI drift-gate examples and public project metadata, including MIT license, security policy, contribution guide, issue templates, and CI.
+- Added copyable CI drift-gate examples and public project metadata, including MIT license, security policy, and CI.
 - Added served dashboard preference writes through `dashboard --serve`.
 
 ### Changed

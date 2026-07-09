@@ -230,6 +230,5 @@ roadmap/task text is preserved.
 - `examples/greenfield-sample/`: minimal OpenSpec project for the new-project flow.
 - `examples/brownfield-sample/`: fake archived/active changes for backfill testing.
 
-See the [contributing guide](https://github.com/JingW59/specmarten/blob/main/CONTRIBUTING.md)
-for local development and release checks. Report vulnerabilities through
-[SECURITY.md](SECURITY.md).
+For local development and release checks, run `npm test`, `npm run typecheck`,
+and `npm pack --dry-run`. Report vulnerabilities through [SECURITY.md](SECURITY.md).
