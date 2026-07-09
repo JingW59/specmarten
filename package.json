@@ -1,0 +1,60 @@
+{
+  "name": "specmarten",
+  "version": "0.1.2",
+  "description": "AI-first OpenSpec companion for shared human and agent coding sessions.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JingW59/specmarten.git"
+  },
+  "bugs": {
+    "url": "https://github.com/JingW59/specmarten/issues"
+  },
+  "homepage": "https://github.com/JingW59/specmarten#readme",
+  "keywords": [
+    "openspec",
+    "spec-driven-development",
+    "ai",
+    "cli",
+    "roadmap",
+    "drift-detection"
+  ],
+  "type": "module",
+  "bin": {
+    "specmarten": "bin/specmarten.js"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "examples",
+    "SECURITY.md",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup --silent",
+    "dev": "tsx src/index.ts",
+    "prepack": "npm run build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "overrides": {
+    "esbuild": "0.28.1",
+    "vite": "6.4.3"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "tsup": "^8.1.0",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.3",
+    "vitest": "^3.2.6"
+  }
+}

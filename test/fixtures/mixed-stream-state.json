@@ -1,0 +1,91 @@
+{
+  "version": 2,
+  "updatedAt": "2026-06-30T00:00:00.000Z",
+  "mission": "Improve account status visibility for support teams.",
+  "currentVersion": "v2",
+  "streams": [
+    {
+      "id": "account",
+      "version": "v1",
+      "label": "Account access",
+      "state": "maintained",
+      "phases": [
+        {
+          "id": "account-p1",
+          "title": "Account basics",
+          "status": "done",
+          "tasks": [
+            {
+              "id": "account-1",
+              "title": "Create sign-in flow",
+              "status": "done",
+              "changes": ["account-login"]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "status",
+      "version": "v2",
+      "label": "Status reporting",
+      "state": "active",
+      "supersedes": "account",
+      "tracks": [
+        {
+          "id": "account-lane",
+          "label": "Account lane",
+          "phases": [
+            {
+              "id": "status-p1",
+              "title": "Status shell",
+              "status": "in-progress",
+              "tasks": [
+                {
+                  "id": "status-1",
+                  "title": "Publish account status",
+                  "status": "in-progress",
+                  "changes": ["status-page"]
+                },
+                {
+                  "id": "status-2",
+                  "title": "Show empty state",
+                  "status": "todo",
+                  "changes": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "operations",
+          "label": "Operations lane",
+          "phases": [
+            {
+              "id": "status-p2",
+              "title": "Review cards",
+              "status": "done",
+              "tasks": [
+                {
+                  "id": "status-3",
+                  "title": "Show support verdict",
+                  "status": "done",
+                  "changes": ["review-card"]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "lastPatrol": {
+    "change": "drift-check",
+    "verdict": "PASS",
+    "report": "reports/drift-check.md",
+    "at": "2026-06-30T00:00:00.000Z"
+  },
+  "baseline": null,
+  "unlinkedActiveChanges": [],
+  "unlinkedChanges": []
+}

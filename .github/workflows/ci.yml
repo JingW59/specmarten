@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release-readiness:
+    name: Release readiness (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ["18", "20", "22", "24"]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install OpenSpec CLI
+        run: npm install -g @fission-ai/openspec@1.5.0
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+
+      - name: Validate OpenSpec examples
+        run: |
+          for project in examples/*; do
+            if [ -d "$project/openspec" ]; then
+              (cd "$project" && openspec validate --all --strict)
+            fi
+          done
+
+      - name: Verify npm package contents
+        run: |
+          npm pack --dry-run --json --silent > pack.json
+          node -e "const fs = require('node:fs'); const pack = JSON.parse(fs.readFileSync('pack.json', 'utf8'))[0]; const files = new Set(pack.files.map((file) => file.path)); const required = ['bin/specmarten.js', 'dist/index.js', 'examples/ci/README.md', 'examples/ci/drift-gate.sh', 'examples/ci/github-actions-drift-gate.yml']; const missing = required.filter((file) => !files.has(file)); if (missing.length) { console.error('Missing from npm package: ' + missing.join(', ')); process.exit(1); }"

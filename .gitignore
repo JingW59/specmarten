@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+.DS_Store
+*.log
+
+# Keep this CLI repository free of self-hosted local SpecMarten state.
+/.specmarten.json
+/openspec/
+/specmarten/
+
+# Temporary local test scripts.
+runs-*.sh
+runs-*.py

@@ -1,0 +1,191 @@
+import { join } from "node:path";
+import { detectAvailableAgents } from "../../adapters/agent/detect.js";
+import type { AgentName } from "../../adapters/agent/types.js";
+import type { SpecBackend } from "../../adapters/spec-backend/types.js";
+import { type SpecMartenConfig } from "../../config/config.js";
+import { TOOL } from "../../constants.js";
+import { pathExists, readText } from "../../util/fs.js";
+import { hasDeterministicReconcileChanges, reconcileKnownLinks } from "../maintenance/reconcile.js";
+import { findPurposeTbdIssues, formatPurposeTbdIssue } from "../openspec/purpose.js";
+import { renderDashboardHtml } from "../renderers/dashboard.js";
+import { renderRoadmapMarkdown } from "../renderers/roadmap.js";
+import { readState } from "../state/store.js";
+
+export interface ValidationIssue {
+  level: "error" | "warn";
+  code: string;
+  message: string;
+  fixCommand?: string;
+}
+
+export interface ValidationSummary {
+  ok: boolean;
+  issues: ValidationIssue[];
+}
+
+export async function runValidate(options: {
+  root: string;
+  backend: SpecBackend;
+  config: SpecMartenConfig;
+  requireComplete?: boolean;
+}): Promise<ValidationSummary> {
+  const issues: ValidationIssue[] = [];
+  const state = await readState(options.root);
+  const backendPresent = await options.backend.isPresent();
+
+  if (!backendPresent) {
+    issues.push({
+      level: "error",
+      code: "backend-missing",
+      message: "OpenSpec backend is not present.",
+      fixCommand: `${TOOL.cliName} init --bootstrap`
+    });
+  }
+
+  const roadmapPath = join(options.root, TOOL.dataDir, "roadmap.md");
+  const dashboardPath = join(options.root, TOOL.dataDir, "dashboard.html");
+  await compareGeneratedView(roadmapPath, renderRoadmapMarkdown(state), "roadmap-stale", issues);
+  await compareGeneratedView(
+    dashboardPath,
+    renderDashboardHtml(state, { contentLanguage: options.config.language.content }),
+    "dashboard-stale",
+    issues
+  );
+  if (backendPresent) {
+    await detectOpenSpecStateMismatches(options.backend, state, issues, { requireComplete: Boolean(options.requireComplete) });
+    await detectPurposeTbdSpecs(options.backend, issues);
+  }
+
+  const availableAgents = await detectAvailableAgents(options.config.agent.prefer as AgentName[]);
+  if (availableAgents.length === 0) {
+    issues.push({ level: "warn", code: "agent-missing", message: "No claude/codex/gemini CLI detected." });
+  }
+
+  if (backendPresent && state.baseline) {
+    const specsHash = await options.backend.getSpecsHash();
+    if (specsHash !== state.baseline.specsHash) {
+      issues.push({
+        level: "warn",
+        code: "baseline-drift",
+        message: `Current specs hash ${specsHash} differs from baseline ${state.baseline.specsHash}.`,
+        fixCommand: `${TOOL.cliName} closeout`
+      });
+    }
+  }
+
+  return {
+    ok: !issues.some((issue) => issue.level === "error"),
+    issues
+  };
+}
+
+export function formatValidation(summary: ValidationSummary): string {
+  if (summary.issues.length === 0) {
+    return "SpecMarten validate: OK\n";
+  }
+
+  return `${summary.ok ? "SpecMarten validate: OK with warnings" : "SpecMarten validate: FAILED"}\n${summary.issues
+    .map((issue) => {
+      const fix = issue.fixCommand ? `\n  Fix: ${issue.fixCommand}` : "";
+      return `- ${issue.level.toUpperCase()} ${issue.code}: ${issue.message}${fix}`;
+    })
+    .join("\n")}\n`;
+}
+
+async function compareGeneratedView(
+  path: string,
+  expected: string,
+  code: string,
+  issues: ValidationIssue[]
+): Promise<void> {
+  if (!(await pathExists(path))) {
+    issues.push({ level: "error", code, message: `${path} is missing.`, fixCommand: `${TOOL.cliName} validate --fix` });
+    return;
+  }
+
+  const actual = await readText(path);
+  if (actual !== expected) {
+    issues.push({
+      level: "warn",
+      code,
+      message: `${path} is stale relative to state.json.`,
+      fixCommand: `${TOOL.cliName} validate --fix`
+    });
+  }
+}
+
+async function detectPurposeTbdSpecs(backend: SpecBackend, issues: ValidationIssue[]): Promise<void> {
+  const purposeIssues = await findPurposeTbdIssues(backend);
+
+  for (const issue of purposeIssues) {
+    issues.push({
+      level: "warn",
+      code: "purpose-tbd",
+      message: formatPurposeTbdIssue(issue),
+      fixCommand: issue.fixCommand
+    });
+  }
+}
+
+async function detectOpenSpecStateMismatches(
+  backend: SpecBackend,
+  state: Awaited<ReturnType<typeof readState>>,
+  issues: ValidationIssue[],
+  options: { requireComplete: boolean }
+): Promise<void> {
+  const [activeChanges, archivedChanges] = await Promise.all([
+    backend.listActiveChanges(),
+    backend.listArchivedChanges()
+  ]);
+  const reconciled = reconcileKnownLinks(state, activeChanges, archivedChanges);
+
+  if (options.requireComplete) {
+    detectIncompleteActiveChecklists(activeChanges, issues);
+    if (hasDeterministicReconcileChanges(state, reconciled)) {
+      issues.push({
+        level: "error",
+        code: "specmarten-state-unreconciled",
+        message: "SpecMarten state is not reconciled with current OpenSpec checklist progress.",
+        fixCommand: `${TOOL.cliName} maintain`
+      });
+    }
+  }
+
+  for (const change of reconciled.unlinkedActiveChanges) {
+    issues.push({
+      level: "warn",
+      code: "openspec-active-unlinked",
+      message: `OpenSpec active change ${change} is not linked to any SpecMarten roadmap task.`,
+      fixCommand: "$specmarten-maintain"
+    });
+  }
+
+  for (const change of reconciled.unlinkedChanges) {
+    issues.push({
+      level: "warn",
+      code: "openspec-archived-unlinked",
+      message: `OpenSpec archived change ${change} is not linked to any SpecMarten roadmap task.`,
+      fixCommand: "$specmarten-maintain"
+    });
+  }
+}
+
+function detectIncompleteActiveChecklists(
+  activeChanges: Awaited<ReturnType<SpecBackend["listActiveChanges"]>>,
+  issues: ValidationIssue[]
+): void {
+  for (const change of activeChanges) {
+    if (change.taskProgress?.complete === true) {
+      continue;
+    }
+
+    const progress = change.taskProgress
+      ? `${change.taskProgress.completed}/${change.taskProgress.total} tasks complete`
+      : "no checklist progress";
+    issues.push({
+      level: "error",
+      code: "openspec-active-incomplete",
+      message: `OpenSpec active change ${change.id} is not complete (${progress}). Complete openspec/changes/${change.id}/tasks.md before claiming done.`
+    });
+  }
+}

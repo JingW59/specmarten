@@ -1,0 +1,100 @@
+# Example only: copy this file into your own repository as
+# .github/workflows/specmarten-drift-gate.yml when you want a drift gate.
+
+name: SpecMarten Drift Gate
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  deterministic:
+    name: Deterministic drift gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+
+      - name: Install SpecMarten
+        run: npm i -g specmarten
+        # For monorepos or local development, replace this with your project-local
+        # SpecMarten installation, then keep the specmarten commands below unchanged.
+
+      - name: Validate SpecMarten state
+        run: specmarten validate
+
+      - name: Reconcile deterministic state
+        run: specmarten reconcile
+        # specmarten reconcile is informational in CI: it is deterministic, does not
+        # call an AI agent, and exits 0.
+
+  semantic:
+    name: Semantic drift gate
+    runs-on: ubuntu-latest
+    needs: deterministic
+    env:
+      CHANGE: ${{ vars.SPECMARTEN_GATE_CHANGE }}
+      AGENT_API_KEY: ${{ secrets.AGENT_API_KEY }}
+      SPECMARTEN_GATE_STRICT_WARN: ${{ vars.SPECMARTEN_GATE_STRICT_WARN }}
+
+    steps:
+      - name: Check out repository
+        if: ${{ env.AGENT_API_KEY != '' && env.CHANGE != '' }}
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        if: ${{ env.AGENT_API_KEY != '' && env.CHANGE != '' }}
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+
+      - name: Install SpecMarten
+        if: ${{ env.AGENT_API_KEY != '' && env.CHANGE != '' }}
+        run: npm i -g specmarten
+
+      # Install your headless agent CLI here if your environment needs one.
+      # This is intentionally BYO agent; keep its credentials in CI secrets.
+      #
+      # - name: Install agent CLI
+      #   if: ${{ env.AGENT_API_KEY != '' && env.CHANGE != '' }}
+      #   run: npm i -g your-agent-cli
+
+      - name: Check semantic drift
+        if: ${{ env.AGENT_API_KEY != '' && env.CHANGE != '' }}
+        shell: sh
+        run: |
+          set +e
+          specmarten check "$CHANGE" --headless
+          code=$?
+          set -e
+
+          case "$code" in
+            0)
+              echo "SpecMarten semantic gate: PASS"
+              ;;
+            10)
+              echo "SpecMarten semantic gate: WARN"
+              echo "WARN does not fail this example by default. Set SPECMARTEN_GATE_STRICT_WARN=1 to make WARN fail."
+              if [ "$SPECMARTEN_GATE_STRICT_WARN" = "1" ]; then
+                exit 10
+              fi
+              ;;
+            2)
+              echo "SpecMarten semantic gate: BLOCK"
+              exit 2
+              ;;
+            *)
+              echo "SpecMarten semantic gate failed with unexpected exit code: $code"
+              exit "$code"
+              ;;
+          esac
+
+      - name: Semantic gate skipped
+        if: ${{ env.AGENT_API_KEY == '' || env.CHANGE == '' }}
+        run: echo "Skipping semantic drift gate because AGENT_API_KEY or SPECMARTEN_GATE_CHANGE is not configured."
