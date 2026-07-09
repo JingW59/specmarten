@@ -1,17 +1,26 @@
 # Changelog
 
-## 0.1.2 - 2026-07-06
+## 0.1.2 - Unreleased
+
+This is the current public source preview. The GitHub repository is public, but
+the `specmarten` npm package has not been published yet.
 
 ### Added
 
 - Added the `specmarten` CLI for project-level OpenSpec roadmap, status, dashboard, drift-check, and maintenance workflows.
 - Added client-first Codex skills and Claude Code commands for planning, backfill, maintenance, drift checks, status, and end-to-end task execution.
-- Added deterministic commands for `status`, `next`, `maintain`, `reconcile`, `closeout`, `baseline refresh`, `validate --fix`, `dashboard --build`, and generated view rendering.
+- Added deterministic commands for `status`, `next`, `maintain`, `reconcile`, `closeout`, `baseline refresh`, `validate --fix`, `validate --complete`, `dashboard`, and generated view rendering.
+- Added `doctor` for CLI provenance in multi-checkout environments.
+- Added `status --summary-json` for compact automation output without full diff payloads.
+- Added OpenSpec consistency reporting for unlinked active and archived changes.
+- Added Purpose TBD detection with concrete remediation hints before baseline refresh or closeout.
 - Added copyable CI drift-gate examples and public project metadata, including MIT license, security policy, and CI.
 - Added served dashboard preference writes through `dashboard --serve`.
 
 ### Changed
 
+- Published the source tree through a clean-history public repository on 2026-07-09.
+- Kept community contribution templates out of the initial public surface until the contribution process is defined.
 - Dashboard output is self-contained, theme-aware, auto-refreshing, and supports Simplified Chinese for fixed UI text and supported state labels.
 - Dashboard preference writes validate local same-origin requests, reject malformed client payloads with 400, and keep CSRF or origin failures at 403.
 - Top-level CLI help now focuses on primary user commands while advanced protocol commands remain callable for skills, hooks, and automation.
