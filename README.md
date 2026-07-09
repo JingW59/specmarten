@@ -19,26 +19,22 @@ endorsed by, sponsored by, or maintained by OpenSpec or its maintainers.
 
 ## Status
 
-Until the npm package is published, install SpecMarten from a source checkout:
-
-```sh
-git clone https://github.com/JingW59/specmarten.git
-cd specmarten
-npm ci
-npm run build
-npm install -g .
-specmarten --help
-```
-
-After the npm package is published:
+Install from npm:
 
 ```sh
 npm install -g specmarten
 specmarten --help
 ```
 
-For source checkout evaluation or development, run `npm ci`, `npm run build`,
-and then use `node bin/specmarten.js`.
+For source checkout evaluation or development:
+
+```sh
+git clone https://github.com/JingW59/specmarten.git
+cd specmarten
+npm ci
+npm run build
+node bin/specmarten.js --help
+```
 
 ## Start
 

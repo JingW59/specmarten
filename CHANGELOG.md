@@ -1,9 +1,8 @@
 # Changelog
 
-## 0.1.2 - Unreleased
+## 0.1.2 - 2026-07-09
 
-This is the current public source preview. The GitHub repository is public, but
-the `specmarten` npm package has not been published yet.
+First public npm release of SpecMarten.
 
 ### Added
 
