@@ -225,6 +225,7 @@ roadmap/task text is preserved.
 
 - `examples/greenfield-sample/`: minimal OpenSpec project for the new-project flow.
 - `examples/brownfield-sample/`: fake archived/active changes for backfill testing.
+- [`docs/case-studies/private-investment-research/`](docs/case-studies/private-investment-research/): reviewed evidence export from a real unfinished private product.
 
 For local development and release checks, run `npm test`, `npm run typecheck`,
 and `npm pack --dry-run`. Report vulnerabilities through [SECURITY.md](SECURITY.md).
