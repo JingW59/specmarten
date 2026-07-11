@@ -6,7 +6,9 @@
 - Source: private repository; no source code is redistributed
 - External reproducibility: unavailable because the source repository is private
 - Evidence basis: a fixed internal project snapshot, reviewed before export
-- Public identity, technical details, task names, commit identifiers, and roadmap content: removed
+- Public dashboard scope: one owner-approved, unredacted first viewport
+- Intentionally visible: product name, project mission, stream label, and some task labels
+- Excluded: source code, repository address, local paths, private commit identifiers, secret values, and the complete roadmap
 
 ## Verified aggregate state
 
@@ -38,14 +40,17 @@ It does not mean:
 
 ## Media provenance
 
-The three published PNG files are newly rendered portrait views containing aggregate status only. They are not raw dashboard or terminal captures. The MP4 is assembled only from these three views.
+- Before is a direct terminal screenshot of a real read-only Git check. The private reference, prompt, and local path are not displayed.
+- Workflow is a direct terminal screenshot of a real SpecMarten status projection plus a real archived-change count. The private prompt and local path are not displayed.
+- After is an unredacted direct capture of the first viewport of the real generated SpecMarten dashboard. No masks or replacement panels are applied.
+- The MP4 contains only these three reviewed portrait views.
 
 No source files, raw JSON, local paths, repository identifiers, sensitive configuration, logs, caches, build scripts, or Git metadata are included in this package.
 
 ## Final media checks
 
 - All three images are true PNG files at 1080×1350.
-- The MP4 is H.264, 1080×1350, 30 fps, yuv420p, 24.966667 seconds, and contains no audio stream.
+- The MP4 is H.264, 1080×1350, 30 fps, yuv420p, 8.000000 seconds, and contains no audio stream.
 - The complete video decodes without error.
-- Representative frames from Before, Workflow, and After were visually inspected; the video contains only the three sanitized aggregate-status views.
+- Representative frames from Before, Workflow, and After were visually inspected; the video contains two direct terminal screenshots and one unredacted dashboard viewport.
 - The prepared X main post is 278 characters including line breaks.
