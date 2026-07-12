@@ -1,6 +1,6 @@
 # Native backend architecture and workflow
 
-> Status: implemented in the current unreleased worktree. The published `0.1.2` package does not contain this behavior yet.
+> Status: released in SpecMarten `0.2.0`.
 
 ## Purpose
 
@@ -156,7 +156,7 @@ Native validation uses backend-neutral machine codes: `change-active-unlinked`, 
 - Native lifecycle is file-oriented; there is no `specmarten archive` command yet.
 - Claude Code's generated post-tool hook intentionally watches both `openspec/` and `specmarten/ledger/` paths so either configured backend can trigger reconciliation.
 - There is no automatic migration, dual-write, or two-way synchronization.
-- The current implementation is not committed, pushed, or published.
+- Native backend support is available starting with SpecMarten `0.2.0`.
 
 ## Verification
 
