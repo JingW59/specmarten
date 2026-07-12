@@ -20,12 +20,13 @@ export async function runNext(options: {
     options.backend.listActiveChanges()
   ]);
   const issueCodes = new Set(validation.issues.map((issue) => issue.code));
+  const backendLabel = options.config.specBackend === "native" ? "native ledger" : "OpenSpec";
 
   if (issueCodes.has("backend-missing")) {
     return {
-      command: "specmarten init --bootstrap",
-      reason: "SpecMarten requires an OpenSpec project, but openspec/ is missing.",
-      details: ["Run this in a repository where SpecMarten should manage an OpenSpec project."]
+      command: options.config.specBackend === "native" ? "specmarten init --backend native" : "specmarten init --bootstrap",
+      reason: `The configured ${backendLabel} backend is missing.`,
+      details: ["Initialize the configured backend in this repository."]
     };
   }
 
@@ -40,7 +41,7 @@ export async function runNext(options: {
   if (status.maintain.needsAgent) {
     return {
       command: "$specmarten-maintain",
-      reason: "OpenSpec changed and semantic maintenance is needed.",
+      reason: `The ${backendLabel} changed and semantic maintenance is needed.`,
       details: ["Use the client-first maintenance skill, or run specmarten maintain --headless in automation."]
     };
   }
@@ -49,7 +50,7 @@ export async function runNext(options: {
     const command = issueCodes.has("baseline-drift") ? "specmarten closeout" : "specmarten maintain";
     return {
       command,
-      reason: "OpenSpec changed since the last SpecMarten maintenance pass.",
+      reason: `The ${backendLabel} changed since the last SpecMarten maintenance pass.`,
       details: issueCodes.has("baseline-drift")
         ? ["This reconciles linked changes, regenerates views, refreshes the accepted baseline, and validates."]
         : ["This reconciles linked changes and regenerates generated views."]
@@ -67,23 +68,30 @@ export async function runNext(options: {
   if (issueCodes.has("baseline-drift")) {
     return {
       command: "specmarten closeout",
-      reason: "Current OpenSpec specs differ from the accepted SpecMarten baseline.",
+      reason: `Current ${backendLabel} specs differ from the accepted SpecMarten baseline.`,
       details: ["This refreshes the accepted baseline and validates that no post-archive issues remain."]
     };
   }
 
   if (activeChanges.length === 1) {
+    const activeChange = activeChanges[0]!;
     return {
-      command: `openspec validate ${activeChanges[0]!.id} --strict`,
-      reason: "One active OpenSpec change is present.",
-      details: ["After implementation and validation, archive the change and run specmarten closeout."]
+      command:
+        options.config.specBackend === "native"
+          ? "specmarten validate --complete"
+          : `openspec validate ${activeChange.id} --strict`,
+      reason: `One active ${backendLabel} change is present.`,
+      details:
+        options.config.specBackend === "native"
+          ? [`Complete specmarten/ledger/changes/${activeChange.id}/tasks.md, then archive it and run specmarten closeout.`]
+          : ["After implementation and validation, archive the change and run specmarten closeout."]
     };
   }
 
   if (activeChanges.length > 1) {
     return {
-      command: "openspec validate <change-id> --strict",
-      reason: "Multiple active OpenSpec changes are present.",
+      command: options.config.specBackend === "native" ? "specmarten validate --complete" : "openspec validate <change-id> --strict",
+      reason: `Multiple active ${backendLabel} changes are present.`,
       details: [`Active changes: ${activeChanges.map((change) => change.id).join(", ")}`]
     };
   }
@@ -91,6 +99,10 @@ export async function runNext(options: {
   return {
     command: "specmarten status",
     reason: "No immediate maintenance step is required.",
-    details: ["Start the next change with native OpenSpec, or use $specmarten-plan for roadmap planning."]
+    details: [
+      options.config.specBackend === "native"
+        ? "Start the next change under specmarten/ledger/changes/, or use $specmarten-plan for roadmap planning."
+        : "Start the next change with native OpenSpec, or use $specmarten-plan for roadmap planning."
+    ]
   };
 }

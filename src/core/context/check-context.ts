@@ -1,7 +1,7 @@
 import { join, relative, resolve } from "node:path";
 import type { ChangeDetail } from "../../adapters/spec-backend/types.js";
-import { OpenSpecBackend } from "../../adapters/spec-backend/openspec.js";
-import { readConfig, readContentLanguage } from "../../config/config.js";
+import { createSpecBackend } from "../../adapters/spec-backend/factory.js";
+import { readConfig, readContentLanguage, type SpecBackendName } from "../../config/config.js";
 import { TOOL } from "../../constants.js";
 import { UserFacingError } from "../../util/errors.js";
 import { listFilePathsRecursive, readText } from "../../util/fs.js";
@@ -35,6 +35,7 @@ export interface CheckContextEnvelope {
   workflow: "check";
   root: string;
   change: string;
+  specBackend: SpecBackendName;
   contentLanguage: ContentLanguage;
   state: SpecMartenState;
   globalDocs: {
@@ -42,10 +43,12 @@ export interface CheckContextEnvelope {
     techStack: string;
     standards: Array<{ path: string; content: string }>;
   };
+  /** @deprecated Use `ledger`. Retained through 0.x for compatibility. */
   openSpec: {
     change: SerializedCheckChange;
     baselineSpecs: Array<{ path: string; content: string }>;
   };
+  ledger: CheckContextEnvelope["openSpec"];
   triage: TriageResult;
   instruction: string;
   outputSchema: Record<string, unknown>;
@@ -56,8 +59,8 @@ export interface CheckContextEnvelope {
 
 export async function buildCheckContext(options: CheckContextOptions): Promise<CheckContextEnvelope> {
   const root = resolve(options.root);
-  const backend = new OpenSpecBackend(root);
   const config = await readConfig(root);
+  const backend = createSpecBackend(root, config.specBackend);
   const [state, docs, activeChanges, archivedChanges, triage, baselineSpecs, contentLanguage] = await Promise.all([
     readExistingOrInitial(root),
     readGlobalDocs(root),
@@ -69,9 +72,14 @@ export async function buildCheckContext(options: CheckContextOptions): Promise<C
   ]);
   const changeMeta = [...activeChanges, ...archivedChanges].find((change) => change.id === options.change);
   if (!changeMeta) {
-    throw new UserFacingError(`OpenSpec change not found: ${options.change}`);
+    throw new UserFacingError(`Change not found in the configured backend: ${options.change}`);
   }
   const change = await backend.readChange(changeMeta.id);
+
+  const ledger = {
+    change: serializeCheckChange(change),
+    baselineSpecs
+  };
 
   return {
     specmartenContext: SPECMARTEN_CONTEXT_VERSION,
@@ -80,6 +88,7 @@ export async function buildCheckContext(options: CheckContextOptions): Promise<C
     workflow: "check",
     root,
     change: changeMeta.id,
+    specBackend: config.specBackend,
     contentLanguage,
     state,
     globalDocs: {
@@ -87,10 +96,8 @@ export async function buildCheckContext(options: CheckContextOptions): Promise<C
       techStack: docs.techStackDoc,
       standards: docs.standardsDocs
     },
-    openSpec: {
-      change: serializeCheckChange(change),
-      baselineSpecs
-    },
+    openSpec: ledger,
+    ledger,
     triage,
     instruction: checkInstruction(contentLanguage),
     outputSchema: patrolReportOutputSchema(),

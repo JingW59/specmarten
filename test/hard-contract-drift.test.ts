@@ -44,7 +44,7 @@ describe("hard-contract drift", () => {
     const summary = await runCheck({
       root,
       backend: new OpenSpecBackend(root),
-      config: defaultConfig(),
+      config: defaultConfig("openspec"),
       agent,
       change: "remove-api",
       diff: `diff --git a/src/api.ts b/src/api.ts
@@ -98,7 +98,7 @@ describe("hard-contract drift", () => {
     const summary = await runCheck({
       root,
       backend: new OpenSpecBackend(root),
-      config: defaultConfig(),
+      config: defaultConfig("openspec"),
       change: "remove-api",
       diff: `diff --git a/src/routes.ts b/src/routes.ts
 --- a/src/routes.ts
@@ -118,7 +118,7 @@ describe("hard-contract drift", () => {
     const summary = await runCheck({
       root,
       backend: new OpenSpecBackend(root),
-      config: defaultConfig(),
+      config: defaultConfig("openspec"),
       agent,
       change: "remove-api",
       diff: `diff --git a/README.md b/README.md

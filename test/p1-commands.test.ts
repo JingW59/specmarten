@@ -7,6 +7,7 @@ import type { AgentRunner } from "../src/adapters/agent/types.js";
 import { runCloseout } from "../src/core/closeout/closeout.js";
 import { registerDashboardCommand } from "../src/commands/dashboard.js";
 import { registerValidateCommand } from "../src/commands/validate.js";
+import { initializeNativeLedger, NativeSpecBackend } from "../src/adapters/spec-backend/native.js";
 import { OpenSpecBackend } from "../src/adapters/spec-backend/openspec.js";
 import { defaultConfig, readConfig } from "../src/config/config.js";
 import { refreshBaseline } from "../src/core/baseline.js";
@@ -33,7 +34,7 @@ describe("P1 commands", () => {
   it("builds a self-contained dashboard from state", async () => {
     const root = await tempRoot();
     await createProject(root, "do-status");
-    const summary = await runDashboard({ root, config: defaultConfig(), buildOnly: true });
+    const summary = await runDashboard({ root, config: defaultConfig("openspec"), buildOnly: true });
     const html = await readFile(summary.dashboardPath, "utf8");
 
     expect(summary.opened).toBe(false);
@@ -74,9 +75,9 @@ describe("P1 commands", () => {
     const backend = new OpenSpecBackend(root);
     await renderViews(root, await readState(root));
 
-    const ok = await runValidate({ root, backend, config: defaultConfig() });
+    const ok = await runValidate({ root, backend, config: defaultConfig("openspec") });
     await writeText(join(root, "specmarten", "roadmap.md"), "# stale\n");
-    const stale = await runValidate({ root, backend, config: defaultConfig() });
+    const stale = await runValidate({ root, backend, config: defaultConfig("openspec") });
 
     expect(ok.issues.some((issue) => issue.level === "error")).toBe(false);
     expect(stale.issues.some((issue) => issue.code === "roadmap-stale")).toBe(true);
@@ -94,8 +95,8 @@ describe("P1 commands", () => {
     const backend = new OpenSpecBackend(root);
     await renderViews(root, await readState(root));
 
-    const regular = await runValidate({ root, backend, config: defaultConfig() });
-    const complete = await runValidate({ root, backend, config: defaultConfig(), requireComplete: true });
+    const regular = await runValidate({ root, backend, config: defaultConfig("openspec") });
+    const complete = await runValidate({ root, backend, config: defaultConfig("openspec"), requireComplete: true });
 
     expect(regular.issues.some((issue) => issue.code === "openspec-active-incomplete")).toBe(false);
     expect(complete.ok).toBe(false);
@@ -121,7 +122,7 @@ describe("P1 commands", () => {
     const backend = new OpenSpecBackend(root);
     await renderViews(root, await readState(root));
 
-    const complete = await runValidate({ root, backend, config: defaultConfig(), requireComplete: true });
+    const complete = await runValidate({ root, backend, config: defaultConfig("openspec"), requireComplete: true });
 
     expect(complete.ok).toBe(false);
     expect(complete.issues).toEqual(
@@ -136,7 +137,7 @@ describe("P1 commands", () => {
 
     await runReconcile({ root, backend });
 
-    const ready = await runValidate({ root, backend, config: defaultConfig(), requireComplete: true });
+    const ready = await runValidate({ root, backend, config: defaultConfig("openspec"), requireComplete: true });
 
     expect(ready.issues.some((issue) => issue.code === "openspec-active-incomplete")).toBe(false);
     expect(ready.issues.some((issue) => issue.code === "specmarten-state-unreconciled")).toBe(false);
@@ -144,11 +145,11 @@ describe("P1 commands", () => {
 
   it("suggests bootstrap when the OpenSpec backend is missing", async () => {
     const root = await tempRoot();
-    await writeJson(join(root, ".specmarten.json"), defaultConfig());
+    await writeJson(join(root, ".specmarten.json"), defaultConfig("openspec"));
     await mkdir(join(root, "specmarten", "reports"), { recursive: true });
     await writeState(root, createInitialState());
 
-    const summary = await runValidate({ root, backend: new OpenSpecBackend(root), config: defaultConfig() });
+    const summary = await runValidate({ root, backend: new OpenSpecBackend(root), config: defaultConfig("openspec") });
 
     expect(summary.issues.find((issue) => issue.code === "backend-missing")?.fixCommand).toBe(
       "specmarten init --bootstrap"
@@ -210,7 +211,7 @@ describe("P1 commands", () => {
   it("serves dashboard routes and protects writable preferences over HTTP", async () => {
     const root = await tempRoot();
     await createProject(root, "do-status");
-    const summary = await runDashboard({ root, config: defaultConfig(), serve: true, port: 0 });
+    const summary = await runDashboard({ root, config: defaultConfig("openspec"), serve: true, port: 0 });
     const url = summary.url ?? "";
     const origin = new URL(url).origin;
     const preferencesUrl = new URL("/api/preferences/language", url);
@@ -304,7 +305,7 @@ describe("P1 commands", () => {
 
     const output = await runValidateCommand(root, ["validate", "--fix", "--json"]);
     const payload = JSON.parse(output);
-    const summary = await runValidate({ root, backend, config: defaultConfig() });
+    const summary = await runValidate({ root, backend, config: defaultConfig("openspec") });
 
     expect(payload.viewsFixed).toBe(true);
     expect(payload.stateFixed).toBe(false);
@@ -314,6 +315,35 @@ describe("P1 commands", () => {
     expect(summary.issues.some((issue) => issue.code === "dashboard-stale")).toBe(false);
   });
 
+  it("recommends maintenance before closeout when native unlinked archive and baseline drift coexist", async () => {
+    const root = await tempRoot();
+    await initializeNativeLedger(root);
+    await writeJson(join(root, ".specmarten.json"), defaultConfig("native"));
+    await mkdir(join(root, "specmarten", "ledger", "specs", "status"), { recursive: true });
+    await mkdir(join(root, "specmarten", "reports"), { recursive: true });
+    await writeFile(join(root, "specmarten", "ledger", "specs", "status", "spec.md"), "# Status v1\n", "utf8");
+    await writeState(root, createInitialState());
+    await renderViews(root, await readState(root));
+
+    const backend = new NativeSpecBackend(root);
+    await refreshBaseline({ root, backend });
+    const archive = join(root, "specmarten", "ledger", "changes", "archive", "2026-07-12-add-status");
+    await mkdir(archive, { recursive: true });
+    await writeFile(join(archive, "proposal.md"), "# Add status\n", "utf8");
+    await writeFile(join(archive, "tasks.md"), "# Tasks\n\n- [x] Add status\n", "utf8");
+    await writeFile(join(root, "specmarten", "ledger", "specs", "status", "spec.md"), "# Status v2\n", "utf8");
+
+    const payload = JSON.parse(await runValidateCommand(root, ["validate", "--json"]));
+
+    expect(payload.issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "change-archived-unlinked" }),
+        expect.objectContaining({ code: "baseline-drift" })
+      ])
+    );
+    expect(payload.recommendedCommand).toBe("$specmarten-maintain");
+  });
+
   it("refreshes baseline hash, snapshot, state, and views", async () => {
     const root = await tempRoot();
     await createProject(root, "do-status");
@@ -321,10 +351,10 @@ describe("P1 commands", () => {
     const first = await refreshBaseline({ root, backend });
     await writeFile(join(root, "openspec", "specs", "status", "spec.md"), "# Status Spec\n\n## Purpose\nUpdated\n", "utf8");
 
-    const drift = await runValidate({ root, backend, config: defaultConfig() });
+    const drift = await runValidate({ root, backend, config: defaultConfig("openspec") });
     const refreshed = await refreshBaseline({ root, backend });
     const state = await readState(root);
-    const after = await runValidate({ root, backend, config: defaultConfig() });
+    const after = await runValidate({ root, backend, config: defaultConfig("openspec") });
 
     expect(first.specsHash).not.toBe(refreshed.specsHash);
     expect(refreshed.copiedFiles).toBe(1);
@@ -344,12 +374,34 @@ describe("P1 commands", () => {
     await createProject(root, "do-status");
     await writeFile(join(root, "openspec", "specs", "status", "spec.md"), "# Status Spec\n\n## Purpose\nTBD\n", "utf8");
 
-    const summary = await runValidate({ root, backend: new OpenSpecBackend(root), config: defaultConfig() });
+    const summary = await runValidate({ root, backend: new OpenSpecBackend(root), config: defaultConfig("openspec") });
 
     const issue = summary.issues.find((item) => item.code === "purpose-tbd");
     expect(issue?.message).toContain("openspec/specs/status/spec.md");
     expect(issue?.message).toContain('Suggested Purpose: "Define Render status behavior."');
     expect(issue?.fixCommand).toContain("openspec/specs/status/spec.md");
+  });
+
+  it("does not apply OpenSpec Purpose TBD rules to native accepted specs", async () => {
+    const root = await tempRoot();
+    await initializeNativeLedger(root);
+    await mkdir(join(root, "specmarten", "reports"), { recursive: true });
+    await mkdir(join(root, "specmarten", "ledger", "specs", "status"), { recursive: true });
+    await writeFile(
+      join(root, "specmarten", "ledger", "specs", "status", "spec.md"),
+      "# Status Spec\n\n## Purpose\nTBD\n",
+      "utf8"
+    );
+    await writeState(root, createInitialState());
+    await renderViews(root, await readState(root));
+
+    const summary = await runValidate({
+      root,
+      backend: new NativeSpecBackend(root),
+      config: defaultConfig("native")
+    });
+
+    expect(summary.issues.some((item) => item.code === "purpose-tbd")).toBe(false);
   });
 
   it("blocks baseline refresh when Purpose TBD remains and gives a concrete suggestion", async () => {
@@ -367,7 +419,7 @@ describe("P1 commands", () => {
     await createProject(root, "do-status");
     await writeUnlinkedProjectState(root);
 
-    const summary = await runValidate({ root, backend: new OpenSpecBackend(root), config: defaultConfig() });
+    const summary = await runValidate({ root, backend: new OpenSpecBackend(root), config: defaultConfig("openspec") });
 
     expect(summary.issues).toEqual(
       expect.arrayContaining([
@@ -387,7 +439,7 @@ describe("P1 commands", () => {
     await writeMaintainMarker(root, await backend.getCurrentMarker());
     await archiveChange(root, "do-status");
 
-    const summary = await runMaintain({ root, backend, config: defaultConfig(), agent: new ThrowingAgent() });
+    const summary = await runMaintain({ root, backend, config: defaultConfig("openspec"), agent: new ThrowingAgent() });
     const state = await readState(root);
 
     expect(summary.agentCalled).toBe(false);
@@ -409,7 +461,7 @@ describe("P1 commands", () => {
     );
     await writeText(join(root, "specmarten", "roadmap.md"), "# stale\n");
 
-    const summary = await runCloseout({ root, backend, config: defaultConfig() });
+    const summary = await runCloseout({ root, backend, config: defaultConfig("openspec") });
     const state = await readState(root);
 
     expect(summary.exitCode).toBe(0);
@@ -431,7 +483,7 @@ describe("P1 commands", () => {
     await archiveChange(root, "do-status");
     await writeFile(join(root, "openspec", "specs", "status", "spec.md"), "# Status Spec\n\n## Purpose\nTBD\n", "utf8");
 
-    const summary = await runCloseout({ root, backend, config: defaultConfig() });
+    const summary = await runCloseout({ root, backend, config: defaultConfig("openspec") });
     const state = await readState(root);
 
     expect(summary.exitCode).toBe(1);
@@ -456,7 +508,7 @@ describe("P1 commands", () => {
       "utf8"
     );
 
-    const summary = await runCloseout({ root, backend, config: defaultConfig() });
+    const summary = await runCloseout({ root, backend, config: defaultConfig("openspec") });
     const state = await readState(root);
 
     expect(summary.exitCode).toBe(1);
@@ -474,7 +526,7 @@ describe("P1 commands", () => {
     const summary = await runCheck({
       root,
       backend,
-      config: defaultConfig(),
+      config: defaultConfig("openspec"),
       agent: new WarnCheckAgent(),
       change: "do-status"
     });
@@ -533,7 +585,7 @@ async function tempRoot(): Promise<string> {
 }
 
 async function createProject(root: string, changeId: string): Promise<void> {
-  await writeJson(join(root, ".specmarten.json"), defaultConfig());
+  await writeJson(join(root, ".specmarten.json"), defaultConfig("openspec"));
   await mkdir(join(root, "specmarten", "reports"), { recursive: true });
   await mkdir(join(root, "openspec", "specs", "status"), { recursive: true });
   await mkdir(join(root, "openspec", "changes", changeId, "specs", "status"), { recursive: true });

@@ -1,7 +1,7 @@
 {
   "name": "specmarten",
   "version": "0.1.2",
-  "description": "AI-first OpenSpec companion for shared human and agent coding sessions.",
+  "description": "AI-first project governance with a native ledger and optional OpenSpec integration.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -26,6 +26,7 @@
   "files": [
     "bin",
     "dist",
+    "docs/native-backend.md",
     "examples",
     "SECURITY.md",
     "README.md",

@@ -10,7 +10,7 @@ export function registerContextCommand(program: Command): void {
     .command("context")
     .description("Build deterministic context for client-side AI workflows.")
     .requiredOption("--workflow <workflow>", "workflow to build context for; supports plan, backfill, check, and maintain")
-    .option("--change <id>", "OpenSpec change id for check workflow")
+    .option("--change <id>", "change id for check workflow")
     .option("--requirement <requirement>", "natural-language requirement for the workflow")
     .option("--group-by <mode>", "backfill grouping mode: capability, time, or flat", "capability")
     .option("--json", "print machine-readable context envelope")

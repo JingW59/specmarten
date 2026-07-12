@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Added a native SpecMarten change-ledger backend under `specmarten/ledger/` so new projects can use roadmap, status, drift, baseline, and generated-view workflows without OpenSpec.
+- Added backend-aware context envelopes with a neutral `ledger` field while preserving the existing `openSpec` field for compatibility.
+- Added native-backend architecture, lifecycle, compatibility, verification, and example documentation.
+
+### Changed
+
+- New projects default to the native backend; repositories that already contain `openspec/` continue to select the OpenSpec backend automatically.
+- CLI commands, generated Codex skills, Claude Code commands, validation messages, and generated views now follow the configured backend instead of assuming OpenSpec.
+- Unconfigured backend detection now consistently prefers an existing OpenSpec project when both ledger layouts are present.
+- Nested native and OpenSpec archive folders now retain the date from date-prefixed change directories.
+- Native validation emits backend-neutral `change-*` machine codes; OpenSpec projects retain the historical `openspec-*` codes for compatibility.
+- The context-envelope `openSpec` alias is deprecated in favor of `ledger` and retained through the `0.x` line.
+
 ## 0.1.2 - 2026-07-09
 
 First public npm release of SpecMarten.

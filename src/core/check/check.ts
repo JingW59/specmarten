@@ -38,7 +38,7 @@ export async function runCheck(options: CheckOptions): Promise<CheckSummary> {
   const selectedMetas = options.change ? metas.filter((change) => change.id === options.change) : metas;
   const changes = await Promise.all(selectedMetas.map((change) => options.backend.readChange(change.id)));
   if (options.change && changes.length === 0) {
-    throw new UserFacingError(`OpenSpec change not found: ${options.change}`);
+    throw new UserFacingError(`Change not found in the configured backend: ${options.change}`);
   }
 
   const triage = await buildCheckTriage(options.root, options.config, options.diff);

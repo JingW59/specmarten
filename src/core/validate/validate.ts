@@ -23,6 +23,12 @@ export interface ValidationSummary {
   issues: ValidationIssue[];
 }
 
+interface ChangeValidationCodes {
+  activeUnlinked: string;
+  archivedUnlinked: string;
+  activeIncomplete: string;
+}
+
 export async function runValidate(options: {
   root: string;
   backend: SpecBackend;
@@ -34,11 +40,15 @@ export async function runValidate(options: {
   const backendPresent = await options.backend.isPresent();
 
   if (!backendPresent) {
+    const backendLabel = options.config.specBackend === "native" ? "Native SpecMarten" : "OpenSpec";
     issues.push({
       level: "error",
       code: "backend-missing",
-      message: "OpenSpec backend is not present.",
-      fixCommand: `${TOOL.cliName} init --bootstrap`
+      message: `${backendLabel} backend is not present.`,
+      fixCommand:
+        options.config.specBackend === "native"
+          ? `${TOOL.cliName} init --backend native`
+          : `${TOOL.cliName} init --bootstrap`
     });
   }
 
@@ -52,8 +62,14 @@ export async function runValidate(options: {
     issues
   );
   if (backendPresent) {
-    await detectOpenSpecStateMismatches(options.backend, state, issues, { requireComplete: Boolean(options.requireComplete) });
-    await detectPurposeTbdSpecs(options.backend, issues);
+    const changeCodes = changeValidationCodes(options.config.specBackend);
+    await detectBackendStateMismatches(options.backend, state, issues, {
+      requireComplete: Boolean(options.requireComplete),
+      changeCodes
+    });
+    if (options.config.specBackend === "openspec") {
+      await detectPurposeTbdSpecs(options.backend, issues);
+    }
   }
 
   const availableAgents = await detectAvailableAgents(options.config.agent.prefer as AgentName[]);
@@ -127,11 +143,11 @@ async function detectPurposeTbdSpecs(backend: SpecBackend, issues: ValidationIss
   }
 }
 
-async function detectOpenSpecStateMismatches(
+async function detectBackendStateMismatches(
   backend: SpecBackend,
   state: Awaited<ReturnType<typeof readState>>,
   issues: ValidationIssue[],
-  options: { requireComplete: boolean }
+  options: { requireComplete: boolean; changeCodes: ChangeValidationCodes }
 ): Promise<void> {
   const [activeChanges, archivedChanges] = await Promise.all([
     backend.listActiveChanges(),
@@ -140,12 +156,12 @@ async function detectOpenSpecStateMismatches(
   const reconciled = reconcileKnownLinks(state, activeChanges, archivedChanges);
 
   if (options.requireComplete) {
-    detectIncompleteActiveChecklists(activeChanges, issues);
+    detectIncompleteActiveChecklists(activeChanges, issues, options.changeCodes.activeIncomplete);
     if (hasDeterministicReconcileChanges(state, reconciled)) {
       issues.push({
         level: "error",
         code: "specmarten-state-unreconciled",
-        message: "SpecMarten state is not reconciled with current OpenSpec checklist progress.",
+        message: "SpecMarten state is not reconciled with current change checklist progress.",
         fixCommand: `${TOOL.cliName} maintain`
       });
     }
@@ -154,8 +170,8 @@ async function detectOpenSpecStateMismatches(
   for (const change of reconciled.unlinkedActiveChanges) {
     issues.push({
       level: "warn",
-      code: "openspec-active-unlinked",
-      message: `OpenSpec active change ${change} is not linked to any SpecMarten roadmap task.`,
+      code: options.changeCodes.activeUnlinked,
+      message: `Active change ${change} is not linked to any SpecMarten roadmap task.`,
       fixCommand: "$specmarten-maintain"
     });
   }
@@ -163,8 +179,8 @@ async function detectOpenSpecStateMismatches(
   for (const change of reconciled.unlinkedChanges) {
     issues.push({
       level: "warn",
-      code: "openspec-archived-unlinked",
-      message: `OpenSpec archived change ${change} is not linked to any SpecMarten roadmap task.`,
+      code: options.changeCodes.archivedUnlinked,
+      message: `Archived change ${change} is not linked to any SpecMarten roadmap task.`,
       fixCommand: "$specmarten-maintain"
     });
   }
@@ -172,7 +188,8 @@ async function detectOpenSpecStateMismatches(
 
 function detectIncompleteActiveChecklists(
   activeChanges: Awaited<ReturnType<SpecBackend["listActiveChanges"]>>,
-  issues: ValidationIssue[]
+  issues: ValidationIssue[],
+  code: string
 ): void {
   for (const change of activeChanges) {
     if (change.taskProgress?.complete === true) {
@@ -184,8 +201,24 @@ function detectIncompleteActiveChecklists(
       : "no checklist progress";
     issues.push({
       level: "error",
-      code: "openspec-active-incomplete",
-      message: `OpenSpec active change ${change.id} is not complete (${progress}). Complete openspec/changes/${change.id}/tasks.md before claiming done.`
+      code,
+      message: `Active change ${change.id} is not complete (${progress}). Complete its tasks.md checklist before claiming done.`
     });
   }
+}
+
+function changeValidationCodes(backend: SpecMartenConfig["specBackend"]): ChangeValidationCodes {
+  if (backend === "native") {
+    return {
+      activeUnlinked: "change-active-unlinked",
+      archivedUnlinked: "change-archived-unlinked",
+      activeIncomplete: "change-active-incomplete"
+    };
+  }
+
+  return {
+    activeUnlinked: "openspec-active-unlinked",
+    archivedUnlinked: "openspec-archived-unlinked",
+    activeIncomplete: "openspec-active-incomplete"
+  };
 }

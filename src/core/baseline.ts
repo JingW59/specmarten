@@ -46,10 +46,10 @@ export async function refreshBaseline(options: {
   noRender?: boolean;
 }): Promise<BaselineRefreshSummary> {
   if (!(await options.backend.isPresent())) {
-    throw new UserFacingError("OpenSpec backend is not present.");
+    throw new UserFacingError("The configured specification backend is not present.");
   }
 
-  const purposeIssues = await findPurposeTbdIssues(options.backend);
+  const purposeIssues = options.backend.kind === "native" ? [] : await findPurposeTbdIssues(options.backend);
   if (purposeIssues.length > 0) {
     throw new UserFacingError(formatPurposeTbdIssue(purposeIssues[0]!));
   }

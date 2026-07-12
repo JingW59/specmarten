@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { OpenSpecBackend } from "../adapters/spec-backend/openspec.js";
+import { createSpecBackend } from "../adapters/spec-backend/factory.js";
 import { readConfig } from "../config/config.js";
 import { TOOL } from "../constants.js";
 import { runCloseout } from "../core/closeout/closeout.js";
@@ -20,7 +20,7 @@ export function registerCloseoutCommand(program: Command, deps: { createAgent?: 
     .action(async (options: { json?: boolean; headless?: boolean }) => {
       const root = process.cwd();
       const config = await readConfig(root);
-      const backend = new OpenSpecBackend(root);
+      const backend = createSpecBackend(root, config.specBackend);
       const headless = isHeadlessRequested(options.headless || program.opts().headless);
       const agent = headless
         ? deps.createAgent

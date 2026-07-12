@@ -120,7 +120,7 @@ async function tempRoot(): Promise<string> {
 
 async function createSpecMartenProject(root: string): Promise<void> {
   await mkdir(join(root, "specmarten", "standards"), { recursive: true });
-  await writeJson(join(root, ".specmarten.json"), defaultConfig());
+  await writeJson(join(root, ".specmarten.json"), defaultConfig("openspec"));
   await writeState(root, createInitialState());
   await writeFile(join(root, "specmarten", "mission.md"), "# Mission\n\n[TODO: user mission stays here]\n", "utf8");
   await writeFile(join(root, "specmarten", "tech-stack.md"), "# Tech Stack\n\n[TODO: user stack]\n", "utf8");

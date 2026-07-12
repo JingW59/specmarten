@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { OpenSpecBackend } from "../adapters/spec-backend/openspec.js";
+import { createSpecBackend } from "../adapters/spec-backend/factory.js";
 import { readConfig } from "../config/config.js";
 import {
   formatStatus,
@@ -17,7 +17,7 @@ export function registerStatusCommand(program: Command): void {
     .action(async (options: { json?: boolean; summaryJson?: boolean }) => {
       const root = process.cwd();
       const config = await readConfig(root);
-      const backend = new OpenSpecBackend(root);
+      const backend = createSpecBackend(root, config.specBackend);
       const snapshot = await runStatus({ root, backend, config });
 
       if (options.summaryJson) {

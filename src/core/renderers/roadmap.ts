@@ -32,7 +32,7 @@ export function renderRoadmapMarkdown(state: SpecMartenState): string {
   }
 
   if (state.unlinkedActiveChanges.length > 0 || state.unlinkedChanges.length > 0) {
-    lines.push("## OpenSpec Changes Needing Roadmap Links", "");
+    lines.push("## Change Ledger Items Needing Roadmap Links", "");
   }
 
   if (state.unlinkedActiveChanges.length > 0) {

@@ -33,7 +33,7 @@ describe("status", () => {
     const snapshot = await runStatus({
       root,
       backend,
-      config: defaultConfig()
+      config: defaultConfig("openspec")
     });
     const output = formatStatus(snapshot);
 
@@ -80,7 +80,7 @@ describe("status", () => {
     const snapshot = await runStatus({
       root,
       backend,
-      config: defaultConfig()
+      config: defaultConfig("openspec")
     });
     const state = await readState(root);
 
@@ -112,7 +112,7 @@ describe("status", () => {
     const snapshot = await runStatus({
       root,
       backend,
-      config: defaultConfig()
+      config: defaultConfig("openspec")
     });
     const state = await readState(root);
 
@@ -163,7 +163,7 @@ describe("status", () => {
     const snapshot = await runStatus({
       root,
       backend,
-      config: defaultConfig()
+      config: defaultConfig("openspec")
     });
     const output = formatStatus(snapshot);
     const json = JSON.parse((await runStatusCommand(root, ["status", "--summary-json"])).stdout);
@@ -223,7 +223,7 @@ describe("status", () => {
     const snapshot = await runStatus({
       root,
       backend,
-      config: defaultConfig()
+      config: defaultConfig("openspec")
     });
 
     expect(snapshot.maintain.needsReconcile).toBe(true);
@@ -232,21 +232,21 @@ describe("status", () => {
 
   it("reports a missing OpenSpec backend instead of recommending reconcile", async () => {
     const root = await tempRoot();
-    await writeJson(join(root, ".specmarten.json"), defaultConfig());
+    await writeJson(join(root, ".specmarten.json"), defaultConfig("openspec"));
     await mkdir(join(root, "specmarten", "reports"), { recursive: true });
     await writeState(root, createInitialState());
 
     const snapshot = await runStatus({
       root,
       backend: new OpenSpecBackend(root),
-      config: defaultConfig()
+      config: defaultConfig("openspec")
     });
     const output = formatStatus(snapshot);
 
     expect(snapshot.maintain.backendMissing).toBe(true);
     expect(snapshot.maintain.needsReconcile).toBe(false);
     expect(snapshot.maintain.recommendedCommand).toBe("specmarten init --bootstrap");
-    expect(output).toContain("Maintenance signal: OpenSpec backend missing");
+    expect(output).toContain("Maintenance signal: configured backend missing");
     expect(output).toContain("Next: specmarten init --bootstrap");
   });
 
@@ -287,7 +287,7 @@ async function tempRoot(): Promise<string> {
 }
 
 async function createOpenSpecWithActiveChange(root: string, id: string): Promise<void> {
-  await writeJson(join(root, ".specmarten.json"), defaultConfig());
+  await writeJson(join(root, ".specmarten.json"), defaultConfig("openspec"));
   await mkdir(join(root, "openspec", "specs", "status"), { recursive: true });
   await mkdir(join(root, "openspec", "changes", id, "specs", "status"), { recursive: true });
   await mkdir(join(root, "openspec", "changes", "archive", "2026-06-01-bootstrap"), { recursive: true });

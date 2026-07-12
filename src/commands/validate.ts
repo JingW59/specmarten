@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { OpenSpecBackend } from "../adapters/spec-backend/openspec.js";
+import { createSpecBackend } from "../adapters/spec-backend/factory.js";
 import { readConfig } from "../config/config.js";
 import { renderViews } from "../core/renderers/index.js";
 import { readState } from "../core/state/store.js";
@@ -11,7 +11,7 @@ export function registerValidateCommand(program: Command): void {
     .description("Validate SpecMarten state, generated views, config, agent availability, and baseline.")
     .option("--json", "print machine-readable validation result")
     .option("--fix", "repair generated roadmap/dashboard views before validating")
-    .option("--complete", "fail when active OpenSpec checklists are not complete")
+    .option("--complete", "fail when active change checklists are not complete")
     .action(async (options: { json?: boolean; fix?: boolean; complete?: boolean }) => {
       const root = process.cwd();
       const config = await readConfig(root);
@@ -20,7 +20,7 @@ export function registerValidateCommand(program: Command): void {
       }
       const summary = await runValidate({
         root,
-        backend: new OpenSpecBackend(root),
+        backend: createSpecBackend(root, config.specBackend),
         config,
         requireComplete: Boolean(options.complete)
       });
@@ -34,7 +34,7 @@ export function registerValidateCommand(program: Command): void {
               stateFixed: false,
               completionRequired: Boolean(options.complete),
               remainingIssues: summary.issues,
-              recommendedCommand: recommendedCommand(summary.issues, Boolean(options.fix))
+              recommendedCommand: recommendedCommand(summary.issues, Boolean(options.fix), config.specBackend)
             },
             null,
             2
@@ -50,17 +50,17 @@ export function registerValidateCommand(program: Command): void {
     });
 }
 
-function recommendedCommand(issues: ValidationIssue[], viewsFixed: boolean): string | null {
+function recommendedCommand(
+  issues: ValidationIssue[],
+  viewsFixed: boolean,
+  backend: "native" | "openspec"
+): string | null {
   if (issues.some((issue) => issue.code === "backend-missing")) {
-    return "specmarten init --bootstrap";
+    return backend === "native" ? "specmarten init --backend native" : "specmarten init --bootstrap";
   }
 
   if (!viewsFixed && issues.some((issue) => issue.code === "roadmap-stale" || issue.code === "dashboard-stale")) {
     return "specmarten validate --fix";
-  }
-
-  if (issues.some((issue) => issue.code === "baseline-drift")) {
-    return "specmarten closeout";
   }
 
   if (issues.some((issue) => issue.code === "specmarten-state-unreconciled")) {
@@ -69,10 +69,20 @@ function recommendedCommand(issues: ValidationIssue[], viewsFixed: boolean): str
 
   if (
     issues.some((issue) =>
-      ["openspec-active-unlinked", "openspec-archived-unlinked", "purpose-tbd"].includes(issue.code)
+      [
+        "change-active-unlinked",
+        "change-archived-unlinked",
+        "openspec-active-unlinked",
+        "openspec-archived-unlinked",
+        "purpose-tbd"
+      ].includes(issue.code)
     )
   ) {
     return "$specmarten-maintain";
+  }
+
+  if (issues.some((issue) => issue.code === "baseline-drift")) {
+    return "specmarten closeout";
   }
 
   return issues.find((issue) => issue.fixCommand && issue.fixCommand !== "specmarten validate --fix")?.fixCommand ?? null;

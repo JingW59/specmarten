@@ -239,7 +239,7 @@ async function createCiGateProject(opts: { renderGeneratedViews?: boolean } = {}
       }
     ]);
 
-  await writeJson(join(root, ".specmarten.json"), defaultConfig());
+  await writeJson(join(root, ".specmarten.json"), defaultConfig("openspec"));
   await mkdir(join(root, "openspec", "specs", "ci-drift-gate"), { recursive: true });
   await mkdir(join(root, "openspec", "changes", "ci-drift-gate", "specs", "ci-drift-gate"), { recursive: true });
   await writeText(join(root, "openspec", "specs", "ci-drift-gate", "spec.md"), "# CI Drift Gate Spec\n");

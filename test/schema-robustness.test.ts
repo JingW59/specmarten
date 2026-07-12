@@ -43,7 +43,7 @@ describe("real-LLM output robustness", () => {
     const summary = await runCheck({
       root,
       backend: new OpenSpecBackend(root),
-      config: defaultConfig(),
+      config: defaultConfig("openspec"),
       agent: new IncompleteLastPatrolAgent(),
       change: "add-status-command"
     });
@@ -88,7 +88,7 @@ describe("real-LLM output robustness", () => {
     const summary = await runCheck({
       root,
       backend: new OpenSpecBackend(root),
-      config: defaultConfig(),
+      config: defaultConfig("openspec"),
       agent: new MalformedJsonAgent(),
       change: "add-status-command"
     });
@@ -317,7 +317,7 @@ async function openspecRepo(): Promise<string> {
   await archivedChange(root, "2026-06-01-add-login", "Add login flow");
   await archivedChange(root, "2026-05-01-old", "Old approach");
   await activeChange(root, "add-status-command", "Add status command");
-  await writeJson(join(root, ".specmarten.json"), defaultConfig());
+  await writeJson(join(root, ".specmarten.json"), defaultConfig("openspec"));
   return root;
 }
 

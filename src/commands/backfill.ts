@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { OpenSpecBackend } from "../adapters/spec-backend/openspec.js";
+import { createSpecBackend } from "../adapters/spec-backend/factory.js";
 import { readConfig } from "../config/config.js";
 import { TOOL } from "../constants.js";
 import { runBackfill } from "../core/backfill/backfill.js";
@@ -23,20 +23,20 @@ export function registerBackfillCommand(
     .option("--headless", HEADLESS_OPTION_DESCRIPTION)
     .action(async (options: { promote?: boolean; groupBy?: "capability" | "time" | "flat"; headless?: boolean }) => {
       const root = process.cwd();
-      const backend = new OpenSpecBackend(root);
+      const config = await readConfig(root);
+      const backend = createSpecBackend(root, config.specBackend);
       const headless = isHeadlessRequested(options.headless || program.opts().headless);
 
       if (!options.promote && !headless) {
         await buildBackfillContext({ root, groupBy: options.groupBy });
         console.log(`${TOOL.displayName} backfill is client-first by default.`);
-        console.log("Run `$specmarten-backfill` in Codex to draft the roadmap from existing OpenSpec changes.");
+        console.log("Run `$specmarten-backfill` in Codex to draft the roadmap from existing ledger changes.");
         console.log(`Headless fallback: \`${TOOL.cliName} backfill --headless\` or SPECMARTEN_HEADLESS=1.`);
         return;
       }
 
-      const config = headless && !options.promote ? await readConfig(root) : undefined;
       const agent =
-        headless && !options.promote ? await (deps.createAgent ?? createHeadlessAgent)(config!.agent.prefer) : undefined;
+        headless && !options.promote ? await (deps.createAgent ?? createHeadlessAgent)(config.agent.prefer) : undefined;
       const summary = await runBackfill({
         root,
         backend,

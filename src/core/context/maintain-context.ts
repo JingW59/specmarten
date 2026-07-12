@@ -1,7 +1,7 @@
 import { resolve } from "node:path";
 import type { ChangeMeta, SpecMeta } from "../../adapters/spec-backend/types.js";
-import { OpenSpecBackend } from "../../adapters/spec-backend/openspec.js";
-import { readConfig, readContentLanguage } from "../../config/config.js";
+import { createSpecBackend } from "../../adapters/spec-backend/factory.js";
+import { readConfig, readContentLanguage, type SpecBackendName } from "../../config/config.js";
 import { TOOL } from "../../constants.js";
 import { readBackfillSnapshot } from "../backfill/snapshot.js";
 import { serializeBackfillChange, type SerializedBackfillChange } from "../backfill/prompt.js";
@@ -29,6 +29,7 @@ export interface MaintainContextEnvelope {
   version: typeof TOOL.version;
   workflow: "maintain";
   root: string;
+  specBackend: SpecBackendName;
   contentLanguage: ContentLanguage;
   state: SpecMartenState;
   globalDocs: {
@@ -44,12 +45,14 @@ export interface MaintainContextEnvelope {
     suggestedLinks: SuggestedChangeLink[];
   };
   triage: TriageResult;
+  /** @deprecated Use `ledger`. Retained through 0.x for compatibility. */
   openSpec: {
     activeChanges: ChangeMeta[];
     archivedChanges: ChangeMeta[];
     specs: SpecMeta[];
     changes: SerializedBackfillChange[];
   };
+  ledger: MaintainContextEnvelope["openSpec"];
   instruction: string;
   outputSchema: Record<string, unknown>;
   next: {
@@ -61,8 +64,8 @@ export interface MaintainContextEnvelope {
 
 export async function buildMaintainContext(options: MaintainContextOptions): Promise<MaintainContextEnvelope> {
   const root = resolve(options.root);
-  const backend = new OpenSpecBackend(root);
   const config = await readConfig(root);
+  const backend = createSpecBackend(root, config.specBackend);
   const [state, docs, snapshot, triage, contentLanguage] = await Promise.all([
     readExistingOrInitial(root),
     readGlobalDocs(root),
@@ -76,12 +79,20 @@ export async function buildMaintainContext(options: MaintainContextOptions): Pro
     ...snapshot.archivedChanges
   ]);
 
+  const ledger = {
+    activeChanges: snapshot.activeChanges,
+    archivedChanges: snapshot.archivedChanges,
+    specs: snapshot.specs,
+    changes: snapshot.changes.map(serializeBackfillChange)
+  };
+
   return {
     specmartenContext: SPECMARTEN_CONTEXT_VERSION,
     tool: TOOL.cliName,
     version: TOOL.version,
     workflow: "maintain",
     root,
+    specBackend: config.specBackend,
     contentLanguage,
     state,
     globalDocs: {
@@ -97,12 +108,8 @@ export async function buildMaintainContext(options: MaintainContextOptions): Pro
       suggestedLinks
     },
     triage,
-    openSpec: {
-      activeChanges: snapshot.activeChanges,
-      archivedChanges: snapshot.archivedChanges,
-      specs: snapshot.specs,
-      changes: snapshot.changes.map(serializeBackfillChange)
-    },
+    openSpec: ledger,
+    ledger,
     instruction: maintainInstruction(contentLanguage),
     outputSchema: maintainOutputSchema(),
     next: {

@@ -28,7 +28,7 @@ Rules:
 - When the requirement is a large new direction, surface the stream decision explicitly: use supersedes by default when the new stream becomes the next milestone, and use parallel only when the work is genuinely concurrent with the current stream.
 - Legacy flat phases[] output is still accepted and wraps into a single active stream; use it only for a simple single-version roadmap.
 - Do not make product decisions that belong to the user. Preserve [TODO] placeholders when the global docs require user input.
-- Do not invent OpenSpec change ids. This is planning; changes[] should usually be empty.
+- Do not invent change ids. This is planning; changes[] should usually be empty.
 - Keep state.json as the only source of truth; roadmap.md is a generated view.
 - Return JSON only, matching the provided output schema.
 ${contentLanguageInstruction(contentLanguage)}`;

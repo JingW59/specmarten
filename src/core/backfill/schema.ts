@@ -159,7 +159,7 @@ const streamProposalItemSchema = () => ({
   type: "object",
   additionalProperties: false,
   description:
-    "Versioned roadmap line reconstructed from OpenSpec history. For a large new direction, choose supersedes by default or parallel explicitly; legacy top-level phases are still accepted.",
+    "Versioned roadmap line reconstructed from change-ledger history. For a large new direction, choose supersedes by default or parallel explicitly; legacy top-level phases are still accepted.",
   properties: {
     id: { type: "string", description: "Optional stream id; assigned if omitted." },
     version: { type: "string", description: "Stream version label, e.g. \"v1\"." },
@@ -190,7 +190,7 @@ export function backfillOutputSchema(): Record<string, unknown> {
       streams: {
         type: "array",
         description:
-          "Versioned streams reconstructed from OpenSpec history. Use supersedes for retired streams by default; use parallel only for genuinely concurrent work.",
+          "Versioned streams reconstructed from change-ledger history. Use supersedes for retired streams by default; use parallel only for genuinely concurrent work.",
         items: streamProposalItemSchema()
       },
       phases: {

@@ -213,7 +213,8 @@ async function assessMaintainNeed(options: StatusOptions, state: SpecMartenState
       unlinkedActiveChanges: state.unlinkedActiveChanges,
       unlinkedChanges: state.unlinkedChanges,
       suggestedLinks: [],
-      recommendedCommand: `${TOOL.cliName} init --bootstrap`,
+      recommendedCommand:
+        options.config.specBackend === "native" ? `${TOOL.cliName} init --backend native` : `${TOOL.cliName} init --bootstrap`,
       exitCode: 0
     };
   }
@@ -275,7 +276,7 @@ async function assessMaintainNeed(options: StatusOptions, state: SpecMartenState
 
 function formatMaintainSignal(signal: StatusMaintainSignal): string {
   if (signal.backendMissing) {
-    return "OpenSpec backend missing";
+    return "configured backend missing";
   }
 
   if (signal.earlyExit) {

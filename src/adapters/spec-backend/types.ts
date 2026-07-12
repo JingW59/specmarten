@@ -31,6 +31,7 @@ export interface SpecsSnapshot {
 }
 
 export interface SpecBackend {
+  readonly kind?: "native" | "openspec";
   isPresent(): Promise<boolean>;
   listActiveChanges(): Promise<ChangeMeta[]>;
   listArchivedChanges(): Promise<ChangeMeta[]>;

@@ -241,7 +241,7 @@ class FakeAgent implements HeadlessAgent {
 
 async function createExecutionModeProject(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "specmarten-execution-mode-test-"));
-  await writeJson(join(root, ".specmarten.json"), defaultConfig());
+  await writeJson(join(root, ".specmarten.json"), defaultConfig("openspec"));
   await mkdir(join(root, "specmarten", "standards"), { recursive: true });
   await mkdir(join(root, "openspec", "specs", "status"), { recursive: true });
   await mkdir(join(root, "openspec", "changes", "add-status-command", "specs", "status"), { recursive: true });

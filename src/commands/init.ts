@@ -3,8 +3,16 @@ import { join } from "node:path";
 import { TOOL } from "../constants.js";
 import type { AgentRunner } from "../adapters/agent/types.js";
 import { detectAvailableAgents } from "../adapters/agent/detect.js";
-import { OpenSpecBackend } from "../adapters/spec-backend/openspec.js";
-import { detectProjectType, readConfig, writeDefaultConfigIfMissing, type ProjectType } from "../config/config.js";
+import { createSpecBackend } from "../adapters/spec-backend/factory.js";
+import { initializeNativeLedger } from "../adapters/spec-backend/native.js";
+import {
+  detectProjectType,
+  hasConfig,
+  readConfig,
+  writeDefaultConfigIfMissing,
+  type ProjectType,
+  type SpecBackendName
+} from "../config/config.js";
 import { runBackfill } from "../core/backfill/backfill.js";
 import type { BackfillSummary } from "../core/backfill/draft.js";
 import { createBaselineIfMissing } from "../core/baseline.js";
@@ -25,6 +33,7 @@ export interface InitOptions {
   root?: string;
   yes?: boolean;
   bootstrap?: boolean;
+  backend?: SpecBackendName;
   minimal?: boolean;
   noClaude?: boolean;
   noCodex?: boolean;
@@ -52,19 +61,21 @@ export function registerInitCommand(program: Command): void {
     .command("init")
     .description("Initialize SpecMarten files, generated views, and detected integrations.")
     .option("-y, --yes", "accept defaults")
+    .option("--backend <backend>", "change ledger backend: native or openspec")
     .option("--bootstrap", "run native `openspec init` before initializing SpecMarten")
-    .option("--minimal", "initialize only OpenSpec/SpecMarten basics; skip Codex, Claude Code, and git hook files")
+    .option("--minimal", "initialize only SpecMarten basics; skip Codex, Claude Code, and git hook files")
     .option("--no-claude", "skip Claude Code agent and hook files")
     .option("--no-codex", "skip Codex AGENTS.md guidance and project hook files")
     .option("--no-git-hook", "skip git post-commit fallback hook")
     .option("--headless", HEADLESS_OPTION_DESCRIPTION)
     .addHelpText(
       "after",
-      "\nBy default, init may write specmarten/, .specmarten.json, Codex skills or AGENTS.md guidance, Claude Code files, and a git post-commit hook when those integrations are detected. Use --minimal to create only OpenSpec/SpecMarten project files."
+      "\nBy default, init may write specmarten/, .specmarten.json, Codex skills or AGENTS.md guidance, Claude Code files, and a git post-commit hook when those integrations are detected. Use --minimal to create only SpecMarten project files."
     )
     .action(async (options: {
       yes?: boolean;
       bootstrap?: boolean;
+      backend?: string;
       minimal?: boolean;
       claude?: boolean;
       codex?: boolean;
@@ -76,6 +87,7 @@ export function registerInitCommand(program: Command): void {
         root: process.cwd(),
         yes: options.yes,
         bootstrap: options.bootstrap,
+        backend: parseBackendName(options.backend),
         minimal: options.minimal,
         noClaude: options.minimal || options.claude === false,
         noCodex: options.minimal || options.codex === false,
@@ -92,10 +104,16 @@ export async function runInit(options: InitOptions = {}): Promise<InitSummary> {
   const noClaude = options.minimal || options.noClaude;
   const noCodex = options.minimal || options.noCodex;
   const noGitHook = options.minimal || options.noGitHook;
-  const backend = new OpenSpecBackend(root);
+  const backendName = await resolveInitBackend(root, options);
+
+  if (backendName === "native") {
+    await initializeNativeLedger(root);
+  }
+
+  const backend = createSpecBackend(root, backendName);
 
   if (!(await backend.isPresent())) {
-    if (!options.bootstrap) {
+    if (backendName !== "openspec" || !options.bootstrap) {
       throw new UserFacingError(
         `${TOOL.displayName} needs an OpenSpec project. Run \`openspec init\` first, or retry with \`${TOOL.cliName} init --bootstrap\`.`
       );
@@ -133,7 +151,7 @@ export async function runInit(options: InitOptions = {}): Promise<InitSummary> {
     }
   }
 
-  if (await writeDefaultConfigIfMissing(root)) {
+  if (await writeDefaultConfigIfMissing(root, backendName)) {
     created.push(TOOL.configFile);
   } else {
     preserved.push(TOOL.configFile);
@@ -189,7 +207,7 @@ export async function runInit(options: InitOptions = {}): Promise<InitSummary> {
         ? "Refresh or restart Codex, then run `$specmarten-plan your requirement` to draft the roadmap."
         : backfill
           ? `Review \`${TOOL.dataDir}/roadmap.md\` and run \`${TOOL.cliName} promote\` when the draft is right.`
-          : "Refresh or restart Codex, then run `$specmarten-backfill` to draft the roadmap from existing OpenSpec changes."
+          : `Refresh or restart Codex, then run \`$specmarten-backfill\` to draft the roadmap from existing ${backendName} changes.`
   };
 }
 
@@ -221,7 +239,7 @@ function printInitSummary(summary: InitSummary): void {
   console.log(summary.gitHook.installed ? "Git hook: installed" : `Git hook: ${summary.gitHook.skippedReason}`);
   if (summary.gitHook.skippedReason === "Skipped by --minimal.") {
     console.log(
-      "WARNING: --minimal skipped git hook installation. After OpenSpec archive, run `specmarten closeout` to reconcile, render, refresh baseline, and validate."
+      "WARNING: --minimal skipped git hook installation. After archiving a change, run `specmarten closeout` to reconcile, render, refresh baseline, and validate."
     );
     console.log("To install integrations later, run `specmarten init` without `--minimal`.");
   }
@@ -246,6 +264,38 @@ async function bootstrapOpenSpec(root: string): Promise<void> {
       "Could not run native `openspec init`. Install OpenSpec and run it directly, then retry `specmarten init`."
     );
   }
+}
+
+async function resolveInitBackend(root: string, options: InitOptions): Promise<SpecBackendName> {
+  if (await hasConfig(root)) {
+    const configured = (await readConfig(root)).specBackend;
+    if (options.backend && options.backend !== configured) {
+      throw new UserFacingError(
+        `${TOOL.configFile} already selects the ${configured} backend. Remove the conflicting --backend option or update the configuration intentionally.`
+      );
+    }
+    if (options.bootstrap && configured !== "openspec") {
+      throw new UserFacingError("--bootstrap is only available with the openspec backend.");
+    }
+    return configured;
+  }
+
+  if (options.bootstrap) {
+    if (options.backend === "native") {
+      throw new UserFacingError("--bootstrap is only available with the openspec backend.");
+    }
+    return "openspec";
+  }
+
+  if (options.backend) return options.backend;
+  return (await pathExists(join(root, "openspec"))) ? "openspec" : "native";
+}
+
+function parseBackendName(value?: string): SpecBackendName | undefined {
+  if (value === undefined || value === "native" || value === "openspec") {
+    return value;
+  }
+  throw new UserFacingError(`Unknown backend ${value}. Use native or openspec.`);
 }
 
 function relativeDisplay(root: string, path: string): string {

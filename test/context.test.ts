@@ -92,7 +92,7 @@ describe("context", () => {
   it("uses the configured content language in generation context", async () => {
     const root = await createContextProject();
     await writeJson(join(root, ".specmarten.json"), {
-      ...defaultConfig(),
+      ...defaultConfig("openspec"),
       language: { content: "zh" }
     });
 
@@ -171,6 +171,7 @@ describe("context", () => {
       workflow: "backfill",
       root,
       groupBy: "time",
+      specBackend: "openspec",
       contentLanguage: DEFAULT_CONTENT_LANGUAGE,
       next: {
         writeDraft: "specmarten state write-draft --kind backfill",
@@ -187,6 +188,7 @@ describe("context", () => {
       "add-status-command"
     ]);
     expect(envelope.openSpec.changes[0]?.specDeltas[0]?.contentPreview).toContain("Login");
+    expect(envelope.ledger).toEqual(envelope.openSpec);
     expect(envelope.instruction).toBe(backfillInstruction({ groupBy: "time" }));
     expect(envelope.instruction).toContain("use supersedes by default");
     expect(envelope.instruction).toContain("use parallel only");
@@ -221,6 +223,7 @@ describe("context", () => {
       workflow: "check",
       root,
       change: "add-status-command",
+      specBackend: "openspec",
       contentLanguage: DEFAULT_CONTENT_LANGUAGE,
       next: {
         patrolReport: "specmarten patrol report"
@@ -239,6 +242,7 @@ describe("context", () => {
         content: "# Baseline Account Spec\n"
       }
     ]);
+    expect(envelope.ledger).toEqual(envelope.openSpec);
     expect(envelope.triage.hit).toBe(false);
     expect(envelope.instruction).toBe(checkInstruction());
     expect(envelope.outputSchema).toEqual(patrolReportOutputSchema());
@@ -272,6 +276,7 @@ describe("context", () => {
       version: TOOL.version,
       workflow: "maintain",
       root,
+      specBackend: "openspec",
       contentLanguage: DEFAULT_CONTENT_LANGUAGE,
       next: {
         patrolReport: "specmarten patrol report",
@@ -288,6 +293,7 @@ describe("context", () => {
       "2026-06-01-add-login",
       "add-status-command"
     ]);
+    expect(envelope.ledger).toEqual(envelope.openSpec);
     expect(envelope.instruction).toBe(maintainInstruction());
     expect(envelope.instruction).toContain("Preserve existing streams");
     expect(envelope.instruction).toContain("use supersedes by default");
@@ -394,7 +400,7 @@ async function createBackfillContextProject(): Promise<string> {
 
 async function createCheckContextProject(options: { withBaseline: boolean }): Promise<string> {
   const root = await createBackfillContextProject();
-  await writeJson(join(root, ".specmarten.json"), defaultConfig());
+  await writeJson(join(root, ".specmarten.json"), defaultConfig("openspec"));
 
   if (options.withBaseline) {
     await mkdir(join(root, "specmarten", "baseline", "specs-snapshot", "account"), { recursive: true });
@@ -410,7 +416,7 @@ async function createCheckContextProject(options: { withBaseline: boolean }): Pr
 
 async function createMaintainContextProject(): Promise<string> {
   const root = await createBackfillContextProject();
-  await writeJson(join(root, ".specmarten.json"), defaultConfig());
+  await writeJson(join(root, ".specmarten.json"), defaultConfig("openspec"));
   await writeState(root, singleStreamState({
     ...createInitialState(),
     mission: "Existing mission",

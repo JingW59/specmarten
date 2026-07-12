@@ -27,7 +27,7 @@ describe("maintain", () => {
     const summary = await runMaintain({
       root,
       backend,
-      config: defaultConfig(),
+      config: defaultConfig("openspec"),
       agent: new ThrowingAgent()
     });
     const state = await readState(root);
@@ -49,7 +49,7 @@ describe("maintain", () => {
     const summary = await runMaintain({
       root,
       backend: new OpenSpecBackend(root),
-      config: defaultConfig(),
+      config: defaultConfig("openspec"),
       agent: new ThrowingAgent()
     });
     const state = await readState(root);
@@ -70,7 +70,7 @@ describe("maintain", () => {
     const summary = await runMaintain({
       root,
       backend,
-      config: defaultConfig(),
+      config: defaultConfig("openspec"),
       agent: new ThrowingAgent()
     });
     const state = await readState(root);
@@ -133,7 +133,7 @@ describe("maintain", () => {
     const summary = await runMaintain({
       root,
       backend,
-      config: defaultConfig(),
+      config: defaultConfig("openspec"),
       agent: new SemanticSyncAgent("2026-06-21-do-hunk")
     });
     const state = await readState(root);
@@ -165,7 +165,7 @@ describe("maintain", () => {
     const summary = await runMaintain({
       root,
       backend,
-      config: defaultConfig(),
+      config: defaultConfig("openspec"),
       agent: new SemanticSyncAgent("do-hunk")
     });
     const state = await readState(root);
@@ -189,7 +189,7 @@ describe("maintain", () => {
     const summary = await runMaintain({
       root,
       backend,
-      config: defaultConfig(),
+      config: defaultConfig("openspec"),
       agent: new ThrowingAgent()
     });
 
@@ -213,7 +213,7 @@ describe("maintain", () => {
     const summary = await runMaintain({
       root,
       backend,
-      config: defaultConfig(),
+      config: defaultConfig("openspec"),
       agent: new PatrolAgent("WARN")
     });
     const state = await readState(root);
@@ -231,7 +231,7 @@ describe("maintain", () => {
     await ensureDir(join(root, "src"));
     await writeFile(join(root, "src", "models.ts"), "export class AddedModel {}\n", "utf8");
 
-    const triage = await runTriage(root, defaultConfig().overseer);
+    const triage = await runTriage(root, defaultConfig("openspec").overseer);
 
     expect(triage.hit).toBe(true);
     expect(triage.changedFiles).toContain("src/models.ts");
@@ -242,15 +242,15 @@ describe("maintain", () => {
     const advisory = await runMaintain({
       root: advisoryRoot.root,
       backend: advisoryRoot.backend,
-      config: defaultConfig(),
+      config: defaultConfig("openspec"),
       agent: new PatrolAgent("BLOCK"),
       preArchive: true
     });
 
     const blockingRoot = await sensitiveRoot();
     const blockingConfig: SpecMartenConfig = {
-      ...defaultConfig(),
-      overseer: { ...defaultConfig().overseer, blocking: "pre-archive-block" }
+      ...defaultConfig("openspec"),
+      overseer: { ...defaultConfig("openspec").overseer, blocking: "pre-archive-block" }
     };
     const blocking = await runMaintain({
       root: blockingRoot.root,
@@ -362,7 +362,7 @@ async function tempRoot(): Promise<string> {
 }
 
 async function writeProjectConfig(root: string): Promise<void> {
-  await writeJson(join(root, ".specmarten.json"), defaultConfig());
+  await writeJson(join(root, ".specmarten.json"), defaultConfig("openspec"));
 }
 
 async function createOpenSpecWithActiveChange(root: string, id: string): Promise<void> {

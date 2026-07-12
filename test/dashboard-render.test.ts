@@ -160,11 +160,11 @@ describe("dashboard renderer", () => {
       unlinkedChanges: ["serve-self-hosted-readiness-mode"]
     });
 
-    expect(html).toContain("OpenSpec Consistency");
-    expect(html).toContain("These OpenSpec changes are not linked to a roadmap task yet.");
+    expect(html).toContain("Change Ledger Consistency");
+    expect(html).toContain("These changes are not linked to a roadmap task yet.");
     expect(html).toContain("restore-high-fidelity-analysis-flow");
     expect(html).toContain("serve-self-hosted-readiness-mode");
-    expect(html).toContain("OpenSpec 一致性");
+    expect(html).toContain("变更账本一致性");
   });
 
   it("wraps long roadmap text instead of truncating it with ellipsis", () => {

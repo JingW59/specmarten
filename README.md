@@ -1,11 +1,12 @@
 # SpecMarten
 
-SpecMarten is a small project-level companion for OpenSpec. OpenSpec still owns
-single-change work (`propose`, `apply`, `archive`). SpecMarten keeps the shared
-project layer around those changes:
+SpecMarten is a small project-level governance tool for shared human and AI
+coding sessions. It can use its own native change ledger or remain an OpenSpec
+companion for repositories that already use OpenSpec. SpecMarten keeps the shared
+project layer around individual changes:
 
 - roadmap and current direction
-- task progress linked to OpenSpec changes
+- task progress linked to change-ledger records
 - generated `specmarten/roadmap.md` and `specmarten/dashboard.html`
 - drift/check context for AI-assisted coding sessions
 - a short "what should I do next?" command
@@ -14,7 +15,7 @@ SpecMarten is client-first by default: the current AI session does the semantic
 work, while the CLI provides deterministic context, validation, state writes, and
 generated views.
 
-SpecMarten is independent companion tooling. It is not affiliated with,
+OpenSpec integration is independent companion tooling. SpecMarten is not affiliated with,
 endorsed by, sponsored by, or maintained by OpenSpec or its maintainers.
 
 ## Status
@@ -38,13 +39,19 @@ node bin/specmarten.js --help
 
 ## Start
 
-In a repository that already has `openspec/`:
+For a new native SpecMarten project with no OpenSpec dependency:
 
 ```sh
 specmarten init
 ```
 
-If the repository does not have OpenSpec yet:
+In a repository that already has `openspec/`, the existing backend is detected automatically:
+
+```sh
+specmarten init
+```
+
+To explicitly bootstrap an OpenSpec project instead:
 
 ```sh
 specmarten init --bootstrap
@@ -54,13 +61,18 @@ For smoke tests or repos where you do not want Codex, Claude Code, or git hook
 files installed yet:
 
 ```sh
-specmarten init --bootstrap --minimal
+specmarten init --minimal
 ```
 
 `init` creates the SpecMarten layer, renders the first views, writes
 `.specmarten.json`, and installs supported AI-session files when the matching
 tool is detected. Use `--no-codex`, `--no-claude`, or `--minimal` to skip those
 integrations.
+
+See [Native backend architecture and workflow](docs/native-backend.md) for the
+data model, backend-selection rules, lifecycle, compatibility boundary, and
+verification gates. A minimal walkthrough is available in
+[`examples/native-sample/`](examples/native-sample/).
 
 ## Main AI Path
 
@@ -75,8 +87,8 @@ $specmarten-check <change-id>
 $specmarten-status
 ```
 
-`$specmarten-run` is the end-to-end path: it creates or updates the OpenSpec
-change, implements the code, runs verification, refreshes SpecMarten state,
+`$specmarten-run` is the end-to-end path: it creates or updates a change in the
+configured ledger, implements the code, runs verification, refreshes SpecMarten state,
 renders views, and reports the result. It does not commit, tag, publish, or push
 unless you explicitly ask for that.
 
@@ -103,16 +115,16 @@ Common meanings:
 
 | Command | Purpose |
 | --- | --- |
-| `next` | Prints the next recommended action for the current OpenSpec/SpecMarten state. |
+| `next` | Prints the next recommended action for the current SpecMarten and change-ledger state. |
 | `status` | Read-only progress, drift, and maintenance snapshot. Use `--summary-json` for compact automation output without full diffs. |
 | `doctor` | Read-only CLI provenance: version, commit, package path, remote, and build time. |
 | `dashboard` | Regenerates `specmarten/dashboard.html`; use `dashboard --serve` for a local writable language preference bridge. |
-| `closeout` | After OpenSpec archive: reconcile, render, refresh baseline, and validate. |
+| `closeout` | After a change archive: reconcile, render, refresh baseline, and validate. |
 | `maintain` | Deterministic reconcile and render; use the skill or `--headless` for semantic maintenance. |
 | `check <change>` | Builds check context; `--headless` can run the local agent path for automation. |
 | `validate` | Validates state, generated views, config, available agents, and baseline. |
 | `validate --fix` | Regenerates stale generated views, then validates again. JSON output reports `viewsFixed`, reserved `stateFixed`, and remaining issues. |
-| `validate --complete` | Completion gate: fails if active OpenSpec checklists are unfinished or SpecMarten state still needs reconciliation. |
+| `validate --complete` | Completion gate: fails if active change checklists are unfinished or SpecMarten state still needs reconciliation. |
 
 Advanced protocol commands such as `context`, `state`, `render`, `reconcile`,
 `baseline`, and `patrol` are still available for skills, hooks, and automation,
@@ -120,7 +132,7 @@ but they are intentionally hidden from the top-level help.
 
 ## Typical Lifecycle
 
-New or existing OpenSpec project:
+New native or existing OpenSpec project:
 
 ```sh
 specmarten init
@@ -132,14 +144,22 @@ Plan or backfill with the AI skill, review the generated roadmap, then promote:
 specmarten promote
 ```
 
-Do change work with native OpenSpec. After a change is archived:
+Do change work through `$specmarten-run` or the selected backend. Native records
+live under `specmarten/ledger/changes/`; OpenSpec records remain under
+`openspec/changes/`. After a change is archived:
 
 ```sh
 specmarten closeout
 ```
 
-If `closeout` reports an OpenSpec spec with `Purpose: TBD`, edit the accepted
-spec purpose and run `specmarten closeout` again.
+The native backend is file-oriented and AI-session managed in this release.
+When accepting a native change, update the corresponding accepted documents
+under `specmarten/ledger/specs/`, move the change directory under
+`specmarten/ledger/changes/archive/<date>-<change-id>/`, then run `closeout`.
+OpenSpec projects continue to use native OpenSpec apply/archive commands.
+
+For the OpenSpec backend, if `closeout` reports a spec with `Purpose: TBD`, edit
+the accepted spec purpose and run `specmarten closeout` again.
 
 ## New Direction
 
@@ -185,7 +205,7 @@ Claude support is Claude Code-only. Claude Desktop is not a supported integratio
 ## CI
 
 For SpecMarten's own repo, `.github/workflows/ci.yml` runs typecheck, build,
-tests, OpenSpec validation, and package checks.
+tests, and package checks. OpenSpec projects may add native OpenSpec validation.
 
 For projects that want a copyable drift gate, see `examples/ci/` in this
 repository or npm package:
@@ -201,7 +221,7 @@ repository or npm package:
 
 ```json
 {
-  "specBackend": "openspec",
+  "specBackend": "native",
   "agent": { "prefer": ["codex", "claude", "gemini"] },
   "dashboard": { "autoOpen": false },
   "language": { "content": "en" },
@@ -209,13 +229,16 @@ repository or npm package:
 }
 ```
 
-`language.content` controls the language for future generated content. Existing
+Use `"openspec"` for repositories whose change ledger remains under `openspec/`.
+One repository selects one backend; SpecMarten does not dual-write or synchronize
+the two ledgers. `language.content` controls the language for future generated content. Existing
 roadmap/task text is preserved.
 
 ## Guarantees
 
-- SpecMarten does not replace OpenSpec.
-- OpenSpec owns `propose`, `apply`, and `archive`.
+- Native projects do not require an `openspec/` directory or the OpenSpec CLI.
+- Existing OpenSpec projects remain supported without changing their ledger layout.
+- The configured backend is the only change-ledger authority for a repository.
 - SpecMarten state lives in `specmarten/state.json`.
 - Generated views are read-only outputs.
 - Renderers never call an LLM.
@@ -223,6 +246,7 @@ roadmap/task text is preserved.
 
 ## Examples
 
+- `examples/native-sample/`: no-OpenSpec initialization and native lifecycle walkthrough.
 - `examples/greenfield-sample/`: minimal OpenSpec project for the new-project flow.
 - `examples/brownfield-sample/`: fake archived/active changes for backfill testing.
 - [`docs/case-studies/private-investment-research/`](docs/case-studies/private-investment-research/): reviewed evidence export from a real unfinished private product.

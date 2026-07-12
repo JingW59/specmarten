@@ -48,11 +48,11 @@ describe("end-to-end smoke", () => {
     const backend = new OpenSpecBackend(root);
     await writeMaintainMarker(root, await backend.getCurrentMarker());
     await addActiveChange(root, "do-status");
-    await runMaintain({ root, backend, config: defaultConfig(), agent: new MaintainLinkAgent("do-status") });
+    await runMaintain({ root, backend, config: defaultConfig("openspec"), agent: new MaintainLinkAgent("do-status") });
     await writeMaintainMarker(root, await backend.getCurrentMarker());
     await archiveChange(root, "do-status");
 
-    const status = await runStatus({ root, backend, config: defaultConfig() });
+    const status = await runStatus({ root, backend, config: defaultConfig("openspec") });
     const state = await readState(root);
 
     expect(status.maintain.earlyExit).toBe(false);
@@ -79,7 +79,7 @@ describe("end-to-end smoke", () => {
     await writeMaintainMarker(root, await backend.getCurrentMarker());
     await archiveChange(root, "add-status-command");
 
-    const maintain = await runMaintain({ root, backend, config: defaultConfig(), agent: new ThrowingAgent() });
+    const maintain = await runMaintain({ root, backend, config: defaultConfig("openspec"), agent: new ThrowingAgent() });
     const state = await readState(root);
 
     expect(maintain.agentCalled).toBe(false);
@@ -97,7 +97,7 @@ describe("end-to-end smoke", () => {
     const summary = await runCheck({
       root,
       backend: new OpenSpecBackend(root),
-      config: defaultConfig(),
+      config: defaultConfig("openspec"),
       agent: new BlockCheckAgent(),
       change: "break-output-contract"
     });

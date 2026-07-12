@@ -37,8 +37,12 @@ describe("Codex skills", () => {
     expect(skill).toContain("name: specmarten-run");
     expect(skill).toContain("The current Codex session owns the full task");
     expect(skill).toContain("openspec/changes/<change-id>/");
+    expect(skill).toContain("specmarten/ledger/changes/<change-id>/");
+    expect(skill).toContain("specmarten/ledger/changes/archive/<date>-<change-id>/");
+    expect(skill).toContain("There is no `specmarten archive` command");
     expect(skill).toContain("specmarten context --workflow maintain --json");
     expect(skill).toContain("specmarten state write-draft --kind maintain");
+    expect(skill).toContain("`ledger`");
     expect(skill).toContain("specmarten validate --fix");
     expect(skill).toContain("specmarten validate --complete");
     expect(skill).toContain("openspec validate --all --strict");
@@ -52,7 +56,7 @@ describe("Codex skills", () => {
     expect(codexSkillTemplates[SPECMARTEN_PLAN_SKILL_NAME]).toBe(skill);
     expectGlobalContextCheckpoint(skill);
     expect(skill).toContain("name: specmarten-plan");
-    expect(skill).toContain("test -d specmarten && test -d openspec");
+    expect(skill).toContain("test -d specmarten && test -f .specmarten.json");
     expect(skill).toContain("specmarten context --workflow plan");
     expect(skill).toContain("specmarten state write-draft --kind plan");
     expect(skill).toContain("specmarten render");
@@ -69,7 +73,7 @@ describe("Codex skills", () => {
     expect(codexSkillTemplates[SPECMARTEN_BACKFILL_SKILL_NAME]).toBe(skill);
     expectGlobalContextCheckpoint(skill);
     expect(skill).toContain("name: specmarten-backfill");
-    expect(skill).toContain("test -d specmarten && test -d openspec");
+    expect(skill).toContain("test -d specmarten && test -f .specmarten.json");
     expect(skill).toContain("specmarten context --workflow backfill");
     expect(skill).toContain("specmarten state write-draft --kind backfill");
     expect(skill).toContain("specmarten render");
@@ -85,7 +89,7 @@ describe("Codex skills", () => {
     expect(codexSkillTemplates[SPECMARTEN_CHECK_SKILL_NAME]).toBe(skill);
     expectGlobalContextCheckpoint(skill);
     expect(skill).toContain("name: specmarten-check");
-    expect(skill).toContain("test -d specmarten && test -d openspec");
+    expect(skill).toContain("test -d specmarten && test -f .specmarten.json");
     expect(skill).toContain("specmarten context --workflow check --change");
     expect(skill).toContain("specmarten patrol report");
     expect(skill).toContain("Exit code 0 means PASS, 10 means WARN, and 2 means BLOCK");
@@ -98,7 +102,7 @@ describe("Codex skills", () => {
     expect(codexSkillTemplates[SPECMARTEN_MAINTAIN_SKILL_NAME]).toBe(skill);
     expectGlobalContextCheckpoint(skill);
     expect(skill).toContain("name: specmarten-maintain");
-    expect(skill).toContain("test -d specmarten && test -d openspec");
+    expect(skill).toContain("test -d specmarten && test -f .specmarten.json");
     expect(skill).toContain("specmarten context --workflow maintain");
     expect(skill).toContain("specmarten patrol report");
     expect(skill).toContain("specmarten state write-draft --kind maintain");
@@ -116,7 +120,7 @@ describe("Codex skills", () => {
     expect(codexSkillTemplates[SPECMARTEN_STATUS_SKILL_NAME]).toBe(skill);
     expectGlobalContextCheckpoint(skill);
     expect(skill).toContain("name: specmarten-status");
-    expect(skill).toContain("test -d specmarten && test -d openspec");
+    expect(skill).toContain("test -d specmarten && test -f .specmarten.json");
     expect(skill).toContain("specmarten status --summary-json");
     expect(skill).toContain("Do not run any other SpecMarten workflow unless the user asks for it.");
     expect(skill).toContain("Do not call `codex exec`, `claude -p`, `gemini -p`, or any other headless AI command.");

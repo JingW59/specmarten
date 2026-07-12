@@ -7,12 +7,12 @@ const END = "<!-- END SPECMARTEN MANAGED BLOCK -->";
 const BLOCK = `${START}
 ## SpecMarten Maintenance
 
-- After every OpenSpec archive or change, use \`$specmarten-maintain\` for semantic maintenance.
-- If you run native OpenSpec archive, run \`specmarten closeout\` afterward to reconcile, render, refresh the accepted baseline, and validate.
-- Before implementing behavior changes, create or update a native OpenSpec change under \`openspec/changes/<change-id>/\` with \`proposal.md\`, \`tasks.md\`, and spec deltas; do not edit \`openspec/specs/\` directly except when applying or archiving an accepted OpenSpec change.
+- After every configured-ledger archive or change, use \`$specmarten-maintain\` for semantic maintenance.
+- After archiving any change, run \`specmarten closeout\` to reconcile, render, refresh the accepted baseline, and validate.
+- Before implementing behavior changes, read \`specBackend\` from \`.specmarten.json\`. Use \`openspec/changes/<change-id>/\` for the OpenSpec backend or \`specmarten/ledger/changes/<change-id>/\` for the native backend; do not edit accepted specs directly except when applying or archiving an accepted change.
 - To start or refresh the global roadmap in Codex, use \`$specmarten-plan\`.
 - When unsure what comes next, run \`specmarten next\` and follow the printed command.
-- Before deep work on one OpenSpec change or after a long session, run \`specmarten status --summary-json\` or \`$specmarten-status\` to keep current stream, remaining tasks, and maintenance signals in view. Treat this as read-only context.
+- Before deep work on one change or after a long session, run \`specmarten status --summary-json\` or \`$specmarten-status\` to keep current stream, remaining tasks, and maintenance signals in view. Treat this as read-only context.
 - Do not manually edit \`specmarten/roadmap.md\` or \`specmarten/dashboard.html\`; they are generated from \`specmarten/state.json\`.
 ${END}`;
 

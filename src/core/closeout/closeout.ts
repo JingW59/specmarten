@@ -25,6 +25,8 @@ export interface CloseoutSummary {
 
 const CLOSEOUT_BLOCKING_WARNINGS = new Set([
   "baseline-drift",
+  "change-active-unlinked",
+  "change-archived-unlinked",
   "openspec-active-unlinked",
   "openspec-archived-unlinked",
   "purpose-tbd",
@@ -32,6 +34,8 @@ const CLOSEOUT_BLOCKING_WARNINGS = new Set([
   "dashboard-stale"
 ]);
 const PRE_BASELINE_BLOCKING_WARNINGS = new Set([
+  "change-active-unlinked",
+  "change-archived-unlinked",
   "openspec-active-unlinked",
   "openspec-archived-unlinked",
   "purpose-tbd",

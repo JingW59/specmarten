@@ -105,7 +105,7 @@ describe("stream state model", () => {
       await runStatus({
         root,
         backend: new StableBackend(),
-        config: defaultConfig()
+        config: defaultConfig("openspec")
       })
     );
 

@@ -64,7 +64,7 @@ export function resolveCodexHome(env: NodeJS.ProcessEnv = process.env): string {
 export function renderSpecMartenPlanSkill(): string {
   return `---
 name: specmarten-plan
-description: Draft or refresh the global roadmap for a project that uses SpecMarten (+ OpenSpec). Use when the user wants to plan, scope, or generate a roadmap from a requirement inside a SpecMarten project. The current session generates the plan; the specmarten CLI only provides deterministic context, validation, and rendering.
+description: Draft or refresh the global roadmap for a SpecMarten project. Use when the user wants to plan, scope, or generate a roadmap from a requirement. The current session generates the plan; the specmarten CLI only provides deterministic context, validation, and rendering.
 ---
 
 # SpecMarten Plan
@@ -73,24 +73,24 @@ description: Draft or refresh the global roadmap for a project that uses SpecMar
 
 ## When To Use
 
-Use this when the current working directory is a SpecMarten project with both \`specmarten/\` and \`openspec/\`, and the user wants to turn a requirement into a global roadmap draft.
+Use this when the current working directory is a SpecMarten project and the user wants to turn a requirement into a global roadmap draft.
 
 ## Guardrails
 
 - The current Codex session does the planning. Do not call \`codex exec\`, \`claude -p\`, \`gemini -p\`, or any other headless AI command.
 - ${CODEX_GLOBAL_CONTEXT_CHECKPOINT}
 - \`specmarten/state.json\` is the only source of truth, and model output must only write through \`specmarten state write-draft\`.
-- Never edit \`openspec/\`.
+- Never edit the configured change ledger during roadmap planning.
 
 ## Workflow
 
 1. Guard the working directory before doing anything else:
 
 \`\`\`sh
-test -d specmarten && test -d openspec
+test -d specmarten && test -f .specmarten.json
 \`\`\`
 
-If either directory is missing, stop and tell the user to run \`specmarten init\` inside an OpenSpec project first.
+If either path is missing, stop and tell the user to run \`specmarten init\` first.
 
 2. Validate the project:
 
@@ -139,7 +139,7 @@ specmarten promote
 export function renderSpecMartenRunSkill(): string {
   return `---
 name: specmarten-run
-description: Take over one development task end-to-end in a SpecMarten + OpenSpec project. Use when the user wants the current AI session to create or update the OpenSpec change, implement the code, verify it, maintain SpecMarten state, render generated views, and report the result without asking the user to run each workflow step manually.
+description: Take over one development task end-to-end in a SpecMarten project. Use when the user wants the current AI session to create or update a configured-ledger change, implement the code, verify it, maintain SpecMarten state, render generated views, and report the result without asking the user to run each workflow step manually.
 ---
 
 # SpecMarten Run
@@ -148,15 +148,15 @@ description: Take over one development task end-to-end in a SpecMarten + OpenSpe
 
 ## When To Use
 
-Use this when the current working directory is a SpecMarten project with both \`specmarten/\` and \`openspec/\`, and the user gives a development task they want the current AI session to handle end-to-end.
+Use this when the current working directory is a SpecMarten project and the user gives a development task they want the current AI session to handle end-to-end.
 
 ## Guardrails
 
 - The current Codex session owns the full task. Do not stop after planning or hand the user a step list unless blocked.
 - Do not call \`codex exec\`, \`claude -p\`, \`gemini -p\`, or any other headless AI command.
 - ${CODEX_GLOBAL_CONTEXT_CHECKPOINT}
-- Before implementing behavior changes, create or update a native OpenSpec change under \`openspec/changes/<change-id>/\` with \`proposal.md\`, \`tasks.md\`, and spec deltas.
-- Do not edit accepted baseline specs under \`openspec/specs/\` directly except when applying or archiving an accepted OpenSpec change.
+- Before implementing behavior changes, read \`specBackend\` from \`.specmarten.json\`. Create or update the change under \`openspec/changes/<change-id>/\` for the OpenSpec backend or \`specmarten/ledger/changes/<change-id>/\` for the native backend, with \`proposal.md\`, \`tasks.md\`, and spec deltas.
+- Do not edit accepted baseline specs directly except when applying or archiving an accepted change.
 - \`specmarten/state.json\` is the only source of truth for the global layer. Model-produced maintenance output must only write through \`specmarten state write-draft --kind maintain\`.
 - Do not manually edit \`specmarten/roadmap.md\` or \`specmarten/dashboard.html\`; render them from state.
 - Do not commit, tag, publish, or push unless the user explicitly asks for that.
@@ -166,10 +166,10 @@ Use this when the current working directory is a SpecMarten project with both \`
 1. Guard the working directory before doing anything else:
 
 \`\`\`sh
-test -d specmarten && test -d openspec
+test -d specmarten && test -f .specmarten.json
 \`\`\`
 
-If either directory is missing, stop and tell the user to run \`specmarten init\` inside an OpenSpec project first.
+If either path is missing, stop and tell the user to run \`specmarten init\` first.
 
 2. Validate the project and read the global checkpoint:
 
@@ -180,15 +180,24 @@ specmarten status --summary-json
 
 3. Interpret the user's task as the source of truth. If a missing detail would make implementation risky, ask one concise question; otherwise choose a small, repo-consistent change id.
 
-4. Create or update \`openspec/changes/<change-id>/\` before touching behavior code:
+4. Create or update the configured backend's change directory before touching behavior code:
+
+- OpenSpec backend: \`openspec/changes/<change-id>/\`
+- Native backend: \`specmarten/ledger/changes/<change-id>/\`
 
 - \`proposal.md\` explains why and what changes.
 - \`tasks.md\` tracks implementation and verification.
 - \`specs/<capability>/spec.md\` declares the behavioral delta.
 
-5. Implement the smallest repo-consistent code change that satisfies the OpenSpec delta.
+5. Implement the smallest repo-consistent code change that satisfies the declared delta.
 
 6. Run focused tests or checks for the changed behavior. Broaden verification only when the touched surface is shared.
+
+If the change is accepted and should be archived in this task:
+
+- OpenSpec backend: use the native OpenSpec apply/archive workflow.
+- Native backend: semantically update accepted specs under \`specmarten/ledger/specs/\`, then move the completed change to \`specmarten/ledger/changes/archive/<date>-<change-id>/\`.
+- There is no \`specmarten archive\` command; native archive is the AI-managed directory move above, followed by \`specmarten closeout\`.
 
 7. Maintain SpecMarten state semantically:
 
@@ -196,20 +205,20 @@ specmarten status --summary-json
 specmarten context --workflow maintain --json
 \`\`\`
 
-Use the envelope's \`reconcile.state\`, \`openSpec\`, and \`outputSchema\` as the authority. Link the active OpenSpec change to the relevant roadmap task, preserve existing streams/tracks/currentVersion, and write exactly one maintain JSON through:
+Use the envelope's \`reconcile.state\`, \`ledger\`, and \`outputSchema\` as the authority. Link the active change to the relevant roadmap task, preserve existing streams/tracks/currentVersion, and write exactly one maintain JSON through:
 
 \`\`\`sh
 printf '%s' '<maintain json>' | specmarten state write-draft --kind maintain
 \`\`\`
 
-8. Repair generated views if needed and validate. If the task included a native OpenSpec archive, run \`specmarten closeout\` instead:
+8. Repair generated views if needed and validate. Run OpenSpec validation only for the OpenSpec backend. After any archive, run \`specmarten closeout\`:
 
 \`\`\`sh
 specmarten validate --fix
 specmarten validate
 specmarten validate --complete
-openspec validate --all --strict
-# after archive only:
+# OpenSpec backend only: openspec validate --all --strict
+# after any archive:
 specmarten closeout
 \`\`\`
 
@@ -220,7 +229,7 @@ specmarten closeout
 export function renderSpecMartenBackfillSkill(): string {
   return `---
 name: specmarten-backfill
-description: Draft a global SpecMarten roadmap from an existing OpenSpec project's active and archived changes. Use when the user wants to backfill or reconstruct global state in a SpecMarten project. The current session performs the semantic grouping; the specmarten CLI only provides deterministic context, validation, and rendering.
+description: Draft a global SpecMarten roadmap from an existing configured change ledger. Use when the user wants to backfill or reconstruct global state in a SpecMarten project. The current session performs the semantic grouping; the specmarten CLI only provides deterministic context, validation, and rendering.
 ---
 
 # SpecMarten Backfill
@@ -229,24 +238,24 @@ description: Draft a global SpecMarten roadmap from an existing OpenSpec project
 
 ## When To Use
 
-Use this when the current working directory is a SpecMarten project with both \`specmarten/\` and \`openspec/\`, and the user wants to reconstruct a global roadmap draft from existing OpenSpec changes.
+Use this when the current working directory is a SpecMarten project and the user wants to reconstruct a global roadmap draft from existing changes.
 
 ## Guardrails
 
 - The current Codex session does the semantic grouping. Do not call \`codex exec\`, \`claude -p\`, \`gemini -p\`, or any other headless AI command.
 - ${CODEX_GLOBAL_CONTEXT_CHECKPOINT}
 - \`specmarten/state.json\` is the only source of truth, and model output must only write through \`specmarten state write-draft\`.
-- Never edit \`openspec/\`.
+- Never edit the configured change ledger during backfill.
 
 ## Workflow
 
 1. Guard the working directory before doing anything else:
 
 \`\`\`sh
-test -d specmarten && test -d openspec
+test -d specmarten && test -f .specmarten.json
 \`\`\`
 
-If either directory is missing, stop and tell the user to run \`specmarten init\` inside an OpenSpec project first.
+If either path is missing, stop and tell the user to run \`specmarten init\` first.
 
 2. Validate the project:
 
@@ -264,11 +273,11 @@ specmarten context --workflow backfill --json
 
 Parse the JSON envelope. If \`specmartenContext\` is not \`${SPECMARTEN_CONTEXT_VERSION}\`, stop and tell the user to run \`specmarten update\`.
 
-4. Use the envelope's \`instruction\`, \`globalDocs\`, \`openSpec\`, current \`state\`, and \`outputSchema\` as the authority. Generate one JSON object matching \`outputSchema\`.
+4. Use the envelope's \`instruction\`, \`globalDocs\`, \`ledger\`, current \`state\`, and \`outputSchema\` as the authority. Generate one JSON object matching \`outputSchema\`.
 
 ${STREAM_AWARE_BACKFILL_GUIDANCE}
 
-Group related active and archived OpenSpec changes into streams/tracks/phases and tasks. Put uncertain mappings in \`lowConfidence\` or \`unlinkedChanges\`; put replaced change ids in \`superseded\`. Task \`status\` and \`archivedAt\` are inferred by SpecMarten from the linked change ids, so only link change ids that genuinely belong to a task.
+Group related active and archived changes into streams/tracks/phases and tasks. Put uncertain mappings in \`lowConfidence\` or \`unlinkedChanges\`; put replaced change ids in \`superseded\`. Task \`status\` and \`archivedAt\` are inferred by SpecMarten from the linked change ids, so only link change ids that genuinely belong to a task.
 
 5. Write the draft through the validation boundary:
 
@@ -295,7 +304,7 @@ specmarten promote
 export function renderSpecMartenCheckSkill(): string {
   return `---
 name: specmarten-check
-description: Run a client-first SpecMarten drift patrol for one OpenSpec change. Use when the user wants to check whether a change still aligns with the global mission, roadmap, standards, and baseline specs. The current session decides PASS/WARN/BLOCK; the specmarten CLI only provides deterministic context and report writing.
+description: Run a client-first SpecMarten drift patrol for one configured-ledger change. Use when the user wants to check whether a change still aligns with the global mission, roadmap, standards, and baseline specs. The current session decides PASS/WARN/BLOCK; the specmarten CLI only provides deterministic context and report writing.
 ---
 
 # SpecMarten Check
@@ -304,14 +313,14 @@ description: Run a client-first SpecMarten drift patrol for one OpenSpec change.
 
 ## When To Use
 
-Use this when the current working directory is a SpecMarten project with both \`specmarten/\` and \`openspec/\`, and the user wants to patrol one OpenSpec change for drift.
+Use this when the current working directory is a SpecMarten project and the user wants to patrol one change for drift.
 
 ## Guardrails
 
 - The current Codex session does the drift judgment. Do not call \`codex exec\`, \`claude -p\`, \`gemini -p\`, or any other headless AI command.
 - ${CODEX_GLOBAL_CONTEXT_CHECKPOINT}
 - Write patrol results only through \`specmarten patrol report\`.
-- Never edit \`openspec/\` or \`specmarten/state.json\` directly.
+- Never edit the configured change ledger or \`specmarten/state.json\` directly.
 - WARN and BLOCK are advisory in the default mode; report them clearly even though \`specmarten patrol report\` exits non-zero for those verdicts.
 
 ## Workflow
@@ -319,10 +328,10 @@ Use this when the current working directory is a SpecMarten project with both \`
 1. Guard the working directory before doing anything else:
 
 \`\`\`sh
-test -d specmarten && test -d openspec
+test -d specmarten && test -f .specmarten.json
 \`\`\`
 
-If either directory is missing, stop and tell the user to run \`specmarten init\` inside an OpenSpec project first.
+If either path is missing, stop and tell the user to run \`specmarten init\` first.
 
 2. Validate the project:
 
@@ -340,7 +349,7 @@ specmarten context --workflow check --change "<change id>" --json
 
 Parse the JSON envelope. If \`specmartenContext\` is not \`${SPECMARTEN_CONTEXT_VERSION}\`, stop and tell the user to run \`specmarten update\`.
 
-4. Use the envelope's \`instruction\`, \`globalDocs\`, \`state\`, \`openSpec.change\`, \`openSpec.baselineSpecs\`, \`triage\`, and \`outputSchema\` as the authority. Generate exactly one JSON object matching \`outputSchema\`:
+4. Use the envelope's \`instruction\`, \`globalDocs\`, \`state\`, \`ledger.change\`, \`ledger.baselineSpecs\`, \`triage\`, and \`outputSchema\` as the authority. Generate exactly one JSON object matching \`outputSchema\`:
 
 \`\`\`json
 { "change": "<change id>", "report": "# Overseer report...\\nVERDICT: PASS|WARN|BLOCK\\n" }
@@ -361,7 +370,7 @@ Exit code 0 means PASS, 10 means WARN, and 2 means BLOCK. Treat all three as com
 export function renderSpecMartenMaintainSkill(): string {
   return `---
 name: specmarten-maintain
-description: Synchronize the AI-maintained SpecMarten global state after OpenSpec changes or archives. Use when the user wants to refresh roadmap links, reconcile archived changes, and optionally run drift patrol from inside a SpecMarten project. The current session performs semantic maintenance; the specmarten CLI only provides deterministic context, validation, report writing, and rendering.
+description: Synchronize the AI-maintained SpecMarten global state after configured-ledger changes or archives. Use when the user wants to refresh roadmap links, reconcile archived changes, and optionally run drift patrol from inside a SpecMarten project. The current session performs semantic maintenance; the specmarten CLI only provides deterministic context, validation, report writing, and rendering.
 ---
 
 # SpecMarten Maintain
@@ -370,7 +379,7 @@ description: Synchronize the AI-maintained SpecMarten global state after OpenSpe
 
 ## When To Use
 
-Use this when the current working directory is a SpecMarten project with both \`specmarten/\` and \`openspec/\`, especially after OpenSpec changes were added or archived.
+Use this when the current working directory is a SpecMarten project, especially after changes were added or archived.
 
 ## Guardrails
 
@@ -378,17 +387,17 @@ Use this when the current working directory is a SpecMarten project with both \`
 - ${CODEX_GLOBAL_CONTEXT_CHECKPOINT}
 - \`specmarten/state.json\` is the only source of truth, and model output must only write through \`specmarten state write-draft --kind maintain\`.
 - Write patrol results only through \`specmarten patrol report\`.
-- Never edit \`openspec/\`.
+- Never edit the configured change ledger during maintenance.
 
 ## Workflow
 
 1. Guard the working directory before doing anything else:
 
 \`\`\`sh
-test -d specmarten && test -d openspec
+test -d specmarten && test -f .specmarten.json
 \`\`\`
 
-If either directory is missing, stop and tell the user to run \`specmarten init\` inside an OpenSpec project first.
+If either path is missing, stop and tell the user to run \`specmarten init\` first.
 
 2. Validate the project:
 
@@ -406,11 +415,11 @@ specmarten context --workflow maintain --json
 
 Parse the JSON envelope. If \`specmartenContext\` is not \`${SPECMARTEN_CONTEXT_VERSION}\`, stop and tell the user to run \`specmarten update\`.
 
-4. Use the envelope's \`instruction\`, \`globalDocs\`, \`state\`, \`reconcile\`, \`triage\`, \`openSpec\`, and \`outputSchema\` as the authority. Generate exactly one JSON object matching \`outputSchema\`.
+4. Use the envelope's \`instruction\`, \`globalDocs\`, \`state\`, \`reconcile\`, \`triage\`, \`ledger\`, and \`outputSchema\` as the authority. Generate exactly one JSON object matching \`outputSchema\`.
 
 - Start from \`reconcile.state\`; only change state fields that need semantic maintenance.
 - Preserve existing \`streams\`, \`tracks\`, \`currentVersion\`, and \`supersedes\`; for a large new direction choose \`supersedes\` by default or \`parallel\` explicitly.
-- Link OpenSpec changes semantically to roadmap tasks; do not rely on naming conventions.
+- Link changes semantically to roadmap tasks; do not rely on naming conventions.
 - If \`triage.hit\` is true, include a \`patrol\` with a markdown report ending in \`VERDICT: PASS|WARN|BLOCK\`.
 - If \`triage.hit\` is false, omit \`patrol\`.
 
@@ -466,10 +475,10 @@ Use this when the current working directory is a SpecMarten project and the user
 1. Guard the working directory before doing anything else:
 
 \`\`\`sh
-test -d specmarten && test -d openspec
+test -d specmarten && test -f .specmarten.json
 \`\`\`
 
-If either directory is missing, stop and tell the user to run \`specmarten init\` inside an OpenSpec project first.
+If either path is missing, stop and tell the user to run \`specmarten init\` first.
 
 2. Read the machine-readable status:
 

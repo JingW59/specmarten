@@ -25,7 +25,7 @@ export function backfillInstruction(
   const contentLanguage = input.contentLanguage ?? DEFAULT_CONTENT_LANGUAGE;
   return `You are the SpecMarten backfill maintainer.
 
-Goal: reconstruct an AI-maintained global roadmap draft from an existing OpenSpec project.
+Goal: reconstruct an AI-maintained global roadmap draft from the configured change ledger.
 
 Rules:
 - Prefer a stream-aware roadmap: emit currentVersion + streams[] (each stream carries direct phases or parallel tracks) so versioned lines and concurrent work are preserved.
@@ -103,7 +103,7 @@ Legacy single-phase response (still accepted):
   "notes": []
 }
 
-OpenSpec specs:
+Accepted backend specs:
 ${JSON.stringify(input.specs, null, 2)}
 
 Changes:

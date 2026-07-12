@@ -2,6 +2,7 @@ import { mkdir, mkdtemp, rename, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { initializeNativeLedger, NativeSpecBackend } from "../src/adapters/spec-backend/native.js";
 import { OpenSpecBackend } from "../src/adapters/spec-backend/openspec.js";
 import { defaultConfig } from "../src/config/config.js";
 import { refreshBaseline } from "../src/core/baseline.js";
@@ -19,20 +20,70 @@ describe("next", () => {
     const state = await readState(root);
     await writeState(root, { ...state, draft: true, draftKind: "plan" });
 
-    const next = await runNext({ root, backend: new OpenSpecBackend(root), config: defaultConfig() });
+    const next = await runNext({ root, backend: new OpenSpecBackend(root), config: defaultConfig("openspec") });
 
     expect(next.command).toBe("specmarten promote");
   });
 
   it("recommends bootstrapping OpenSpec when the backend is missing", async () => {
     const root = await mkdtemp(join(tmpdir(), "specmarten-next-missing-backend-test-"));
-    await writeJson(join(root, ".specmarten.json"), defaultConfig());
+    await writeJson(join(root, ".specmarten.json"), defaultConfig("openspec"));
     await mkdir(join(root, "specmarten", "reports"), { recursive: true });
     await writeState(root, createInitialState());
 
-    const next = await runNext({ root, backend: new OpenSpecBackend(root), config: defaultConfig() });
+    const next = await runNext({ root, backend: new OpenSpecBackend(root), config: defaultConfig("openspec") });
 
     expect(next.command).toBe("specmarten init --bootstrap");
+  });
+
+  it("recommends native initialization when the configured native backend is missing", async () => {
+    const root = await mkdtemp(join(tmpdir(), "specmarten-next-missing-native-test-"));
+    const config = defaultConfig("native");
+    await writeJson(join(root, ".specmarten.json"), config);
+    await mkdir(join(root, "specmarten", "reports"), { recursive: true });
+    await writeState(root, createInitialState());
+
+    const next = await runNext({ root, backend: new NativeSpecBackend(root), config });
+
+    expect(next.command).toBe("specmarten init --backend native");
+    expect(next.reason).not.toContain("OpenSpec");
+  });
+
+  it("uses SpecMarten completion guidance for an active native change", async () => {
+    const root = await mkdtemp(join(tmpdir(), "specmarten-next-native-test-"));
+    const config = defaultConfig("native");
+    await initializeNativeLedger(root);
+    await writeJson(join(root, ".specmarten.json"), config);
+    await mkdir(join(root, "specmarten", "reports"), { recursive: true });
+    await mkdir(join(root, "specmarten", "ledger", "changes", "do-status"), { recursive: true });
+    await writeFile(join(root, "specmarten", "ledger", "changes", "do-status", "proposal.md"), "# Do status\n", "utf8");
+    await writeFile(
+      join(root, "specmarten", "ledger", "changes", "do-status", "tasks.md"),
+      "# Tasks\n\n- [ ] Implement status\n",
+      "utf8"
+    );
+    await writeState(
+      root,
+      singleStreamState(
+        { ...createInitialState(), mission: "Native status" },
+        [
+          {
+            id: "p1",
+            title: "MVP",
+            status: "in-progress",
+            tasks: [{ id: "p1.1", title: "Do status", status: "in-progress", changes: ["do-status"] }]
+          }
+        ]
+      )
+    );
+    const backend = new NativeSpecBackend(root);
+    await renderViews(root, await readState(root));
+    await writeMaintainMarker(root, await backend.getCurrentMarker());
+
+    const next = await runNext({ root, backend, config });
+
+    expect(next.command).toBe("specmarten validate --complete");
+    expect(next.reason).toContain("native ledger");
   });
 
   it("recommends validating an active OpenSpec change when state is otherwise clean", async () => {
@@ -41,7 +92,7 @@ describe("next", () => {
     await renderViews(root, await readState(root));
     await writeMaintainMarker(root, await backend.getCurrentMarker());
 
-    const next = await runNext({ root, backend, config: defaultConfig() });
+    const next = await runNext({ root, backend, config: defaultConfig("openspec") });
 
     expect(next.command).toBe("openspec validate do-status --strict");
   });
@@ -52,7 +103,7 @@ describe("next", () => {
     const backend = new OpenSpecBackend(root);
     await runReconcile({ root, backend });
 
-    const next = await runNext({ root, backend, config: defaultConfig() });
+    const next = await runNext({ root, backend, config: defaultConfig("openspec") });
     const state = await readState(root);
 
     expect(collectPhases(state)[0]?.tasks[0]?.status).toBe("done");
@@ -66,7 +117,7 @@ describe("next", () => {
     await writeMaintainMarker(root, await backend.getCurrentMarker());
     await rename(join(root, "openspec", "changes", "do-status"), join(root, "openspec", "changes", "archive", "do-status"));
 
-    const next = await runNext({ root, backend, config: defaultConfig() });
+    const next = await runNext({ root, backend, config: defaultConfig("openspec") });
 
     expect(next.command).toBe("specmarten maintain");
   });
@@ -79,7 +130,7 @@ describe("next", () => {
     await renderViews(root, await readState(root));
     await writeMaintainMarker(root, await backend.getCurrentMarker());
 
-    const next = await runNext({ root, backend, config: defaultConfig() });
+    const next = await runNext({ root, backend, config: defaultConfig("openspec") });
 
     expect(next.command).toBe("specmarten closeout");
   });
@@ -87,7 +138,7 @@ describe("next", () => {
 
 async function createProject(changeId: string): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "specmarten-next-test-"));
-  await writeJson(join(root, ".specmarten.json"), defaultConfig());
+  await writeJson(join(root, ".specmarten.json"), defaultConfig("openspec"));
   await mkdir(join(root, "specmarten", "reports"), { recursive: true });
   await mkdir(join(root, "openspec", "specs", "status"), { recursive: true });
   await mkdir(join(root, "openspec", "changes", changeId, "specs", "status"), { recursive: true });

@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { OpenSpecBackend } from "../adapters/spec-backend/openspec.js";
+import { createSpecBackend } from "../adapters/spec-backend/factory.js";
 import { readConfig } from "../config/config.js";
 import { TOOL } from "../constants.js";
 import { runCheck } from "../core/check/check.js";
@@ -22,7 +22,7 @@ export function registerCheckCommand(
   program
     .command("check [change]")
     .description("Build client-first check context by default; use --headless for automation/CI.")
-    .option("--change <id>", "OpenSpec change id to patrol")
+    .option("--change <id>", "change id to patrol")
     .option("--diff <text>", "diff text or diff summary to include in the patrol")
     .option("--json", "print machine-readable check summary")
     .option("--headless", HEADLESS_OPTION_DESCRIPTION)
@@ -33,7 +33,7 @@ export function registerCheckCommand(
 
       if (!headless) {
         if (!change) {
-          throw new UserFacingError("Check requires an OpenSpec change id, for example: specmarten check add-status-command.");
+          throw new UserFacingError("Check requires a change id, for example: specmarten check add-status-command.");
         }
 
         await buildCheckContext({ root, change });
@@ -47,7 +47,7 @@ export function registerCheckCommand(
       const agent = await (deps.createAgent ?? maybeCreateHeadlessAgent)(config.agent.prefer);
       const summary = await runCheck({
         root,
-        backend: new OpenSpecBackend(root),
+        backend: createSpecBackend(root, config.specBackend),
         config,
         agent,
         change,

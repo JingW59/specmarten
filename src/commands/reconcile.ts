@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { OpenSpecBackend } from "../adapters/spec-backend/openspec.js";
+import { createSpecBackend, resolveSpecBackendName } from "../adapters/spec-backend/factory.js";
 import { TOOL } from "../constants.js";
 import { runReconcile } from "../core/reconcile/reconcile.js";
 
@@ -12,7 +12,7 @@ export function registerReconcileCommand(program: Command): void {
       const root = process.cwd();
       const summary = await runReconcile({
         root,
-        backend: new OpenSpecBackend(root)
+        backend: createSpecBackend(root, await resolveSpecBackendName(root))
       });
 
       if (options.json) {

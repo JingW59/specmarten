@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { Command } from "commander";
-import { OpenSpecBackend } from "../adapters/spec-backend/openspec.js";
+import { createSpecBackend, resolveSpecBackendName } from "../adapters/spec-backend/factory.js";
 import { TOOL } from "../constants.js";
 import { writeBackfillDraft } from "../core/backfill/draft.js";
 import { writeMaintainDraft } from "../core/maintenance/draft.js";
@@ -69,10 +69,11 @@ export function registerStateCommand(
         }
 
         if (options.kind === "backfill") {
+          const backend = createSpecBackend(root, await resolveSpecBackendName(root));
           const response = parseBackfillDraftJson(rawInput);
           const summary = await writeBackfillDraft({
             root,
-            backend: new OpenSpecBackend(root),
+            backend,
             response
           });
 
@@ -88,10 +89,11 @@ export function registerStateCommand(
         }
 
         if (options.kind === "maintain") {
+          const backend = createSpecBackend(root, await resolveSpecBackendName(root));
           const response = parseMaintainDraftJson(rawInput);
           const summary = await writeMaintainDraft({
             root,
-            backend: new OpenSpecBackend(root),
+            backend,
             response
           });
 

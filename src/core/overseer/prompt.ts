@@ -7,10 +7,10 @@ import {
 export function checkInstruction(contentLanguage: ContentLanguage = DEFAULT_CONTENT_LANGUAGE): string {
   return `You are the SpecMarten drift overseer.
 
-Goal: decide whether one OpenSpec change drifts away from the global SpecMarten layer and baseline specs.
+Goal: decide whether one configured-ledger change drifts away from the global SpecMarten layer and baseline specs.
 
 Rules:
-- Judge against mission, standards, current state, baseline specs, and the selected OpenSpec change diff.
+- Judge against mission, standards, current state, baseline specs, and the selected change diff.
 - Return JSON only, matching the provided output schema.
 - The report must be markdown and must include exactly one final verdict line: VERDICT: PASS, VERDICT: WARN, or VERDICT: BLOCK.
 - PASS means no meaningful drift found.
@@ -27,7 +27,7 @@ export function patrolReportOutputSchema(): Record<string, unknown> {
     properties: {
       change: {
         type: "string",
-        description: "The OpenSpec change id being audited."
+        description: "The change id being audited."
       },
       report: {
         type: "string",

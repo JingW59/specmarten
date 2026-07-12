@@ -47,8 +47,8 @@ const EN_LOCALE = {
   "patrol.report": "View report ↗",
   "roadmap.title": "Roadmap",
   "roadmap.hint": "Grouped by stream · supersedes = next milestone, parallel = concurrent tracks",
-  "consistency.title": "OpenSpec Consistency",
-  "consistency.description": "These OpenSpec changes are not linked to a roadmap task yet.",
+  "consistency.title": "Change Ledger Consistency",
+  "consistency.description": "These changes are not linked to a roadmap task yet.",
   "consistency.active": "Active",
   "consistency.archived": "Archived",
   "empty.noStreams": "No streams yet.",
@@ -65,7 +65,7 @@ const EN_LOCALE = {
   "phase.none": "No phases in this scope.",
   "task.none": "No tasks yet",
   "task.showMore": "Show {count} hidden tasks",
-  "footer.summary": "{count} streams · current {current} · maintained from OpenSpec history"
+  "footer.summary": "{count} streams · current {current} · maintained from change-ledger history"
 } as const;
 
 const ZH_LOCALE: Record<LocaleKey, string> = {
@@ -96,8 +96,8 @@ const ZH_LOCALE: Record<LocaleKey, string> = {
   "patrol.report": "查看报告 ↗",
   "roadmap.title": "路线图",
   "roadmap.hint": "按流分组 · supersedes = 下一个里程碑，parallel = 并行轨道",
-  "consistency.title": "OpenSpec 一致性",
-  "consistency.description": "这些 OpenSpec change 还没有链接到路线图任务。",
+  "consistency.title": "变更账本一致性",
+  "consistency.description": "这些变更还没有链接到路线图任务。",
   "consistency.active": "活跃",
   "consistency.archived": "已归档",
   "empty.noStreams": "还没有流。",
@@ -114,7 +114,7 @@ const ZH_LOCALE: Record<LocaleKey, string> = {
   "phase.none": "此范围还没有阶段。",
   "task.none": "还没有任务",
   "task.showMore": "显示 {count} 个隐藏任务",
-  "footer.summary": "{count} 个流 · 当前 {current} · 基于 OpenSpec 历史维护"
+  "footer.summary": "{count} 个流 · 当前 {current} · 基于变更账本历史维护"
 };
 
 const DASHBOARD_LOCALES = { en: EN_LOCALE, zh: ZH_LOCALE };
@@ -240,7 +240,7 @@ function renderConsistencyBand(state: SpecMartenState): string {
     return "";
   }
 
-  return `<section class="consistency" aria-label="OpenSpec consistency"><div class="consistency__head"><span class="card-label">${i18n("consistency.title")}</span><span class="consistency__desc">${i18n("consistency.description")}</span></div><div class="consistency__groups">${renderConsistencyGroup("consistency.active", active)}${renderConsistencyGroup("consistency.archived", archived)}</div></section>`;
+  return `<section class="consistency" aria-label="Change ledger consistency"><div class="consistency__head"><span class="card-label">${i18n("consistency.title")}</span><span class="consistency__desc">${i18n("consistency.description")}</span></div><div class="consistency__groups">${renderConsistencyGroup("consistency.active", active)}${renderConsistencyGroup("consistency.archived", archived)}</div></section>`;
 }
 
 function renderConsistencyGroup(labelKey: LocaleKey, changes: string[]): string {

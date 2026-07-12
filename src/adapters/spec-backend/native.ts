@@ -1,17 +1,18 @@
 import { cp, rm } from "node:fs/promises";
 import { basename, join, relative } from "node:path";
+import { TOOL } from "../../constants.js";
+import { ensureDir, listDirectoryNames, listFilePathsRecursive, pathExists, readText } from "../../util/fs.js";
 import { hashDirectory } from "../../util/hash.js";
 import { isLocalMetadataFile } from "../../util/local-metadata.js";
-import { listDirectoryNames, listFilePathsRecursive, pathExists, readText } from "../../util/fs.js";
 import type { ChangeDetail, ChangeMeta, ChangeTaskProgress, SpecBackend, SpecMeta, SpecsSnapshot } from "./types.js";
 
-export class OpenSpecBackend implements SpecBackend {
-  readonly kind = "openspec" as const;
+export class NativeSpecBackend implements SpecBackend {
+  readonly kind = "native" as const;
 
   constructor(private readonly root: string) {}
 
   async isPresent(): Promise<boolean> {
-    return pathExists(this.openspecRoot());
+    return pathExists(this.ledgerRoot());
   }
 
   async listActiveChanges(): Promise<ChangeMeta[]> {
@@ -55,7 +56,7 @@ export class OpenSpecBackend implements SpecBackend {
   }
 
   async getCurrentMarker(): Promise<string> {
-    return hashDirectory(this.openspecRoot());
+    return hashDirectory(this.ledgerRoot());
   }
 
   async getSpecsHash(): Promise<string> {
@@ -140,9 +141,7 @@ export class OpenSpecBackend implements SpecBackend {
   }
 
   private extractTitle(markdown?: string): string | undefined {
-    if (!markdown) {
-      return undefined;
-    }
+    if (!markdown) return undefined;
 
     const heading = markdown
       .split("\n")
@@ -153,19 +152,14 @@ export class OpenSpecBackend implements SpecBackend {
 
   private extractArchiveDate(id: string): string | undefined {
     const name = id.slice(id.lastIndexOf("/") + 1);
-    const match = name.match(/^(\d{4}-\d{2}-\d{2})/);
-    return match?.[1];
+    return name.match(/^(\d{4}-\d{2}-\d{2})/)?.[1];
   }
 
   private parseTaskProgress(markdown?: string): ChangeTaskProgress | undefined {
-    if (!markdown) {
-      return undefined;
-    }
+    if (!markdown) return undefined;
 
     const checkboxes = [...markdown.matchAll(/^\s*[-*]\s+\[([ xX])\]/gm)];
-    if (checkboxes.length === 0) {
-      return undefined;
-    }
+    if (checkboxes.length === 0) return undefined;
 
     const completed = checkboxes.filter((match) => match[1]?.toLowerCase() === "x").length;
     return {
@@ -175,12 +169,12 @@ export class OpenSpecBackend implements SpecBackend {
     };
   }
 
-  private openspecRoot(): string {
-    return join(this.root, "openspec");
+  private ledgerRoot(): string {
+    return join(this.root, TOOL.dataDir, "ledger");
   }
 
   private changesRoot(): string {
-    return join(this.openspecRoot(), "changes");
+    return join(this.ledgerRoot(), "changes");
   }
 
   private archiveRoot(): string {
@@ -188,10 +182,17 @@ export class OpenSpecBackend implements SpecBackend {
   }
 
   private specsRoot(): string {
-    return join(this.openspecRoot(), "specs");
+    return join(this.ledgerRoot(), "specs");
   }
 
   private changePath(id: string, status: "active" | "archived"): string {
     return status === "active" ? join(this.changesRoot(), id) : join(this.archiveRoot(), id);
   }
+}
+
+export async function initializeNativeLedger(root: string): Promise<void> {
+  await Promise.all([
+    ensureDir(join(root, TOOL.dataDir, "ledger", "changes", "archive")),
+    ensureDir(join(root, TOOL.dataDir, "ledger", "specs"))
+  ]);
 }

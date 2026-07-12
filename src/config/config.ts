@@ -11,7 +11,7 @@ import { UserFacingError } from "../util/errors.js";
 import type { SpecBackend } from "../adapters/spec-backend/types.js";
 
 export const configSchema = z.object({
-  specBackend: z.literal("openspec"),
+  specBackend: z.enum(["native", "openspec"]),
   agent: z
     .object({
       prefer: z.array(z.enum(["claude", "codex", "gemini"])).default(["codex", "claude", "gemini"])
@@ -55,15 +55,16 @@ export const configSchema = z.object({
 });
 
 export type SpecMartenConfig = z.infer<typeof configSchema>;
+export type SpecBackendName = SpecMartenConfig["specBackend"];
 export type ProjectType = "greenfield" | "brownfield";
 
 export function configPath(root: string): string {
   return join(root, TOOL.configFile);
 }
 
-export function defaultConfig(): SpecMartenConfig {
+export function defaultConfig(specBackend: SpecBackendName = "native"): SpecMartenConfig {
   return configSchema.parse({
-    specBackend: "openspec",
+    specBackend,
     agent: { prefer: ["codex", "claude", "gemini"] },
     maintain: { trigger: "git-post-commit", autoRenderViews: true },
     overseer: {
@@ -115,8 +116,11 @@ export async function writeContentLanguage(root: string, language: ContentLangua
   });
 }
 
-export async function writeDefaultConfigIfMissing(root: string): Promise<boolean> {
-  return writeJsonIfMissing(configPath(root), defaultConfig());
+export async function writeDefaultConfigIfMissing(
+  root: string,
+  specBackend: SpecBackendName = "native"
+): Promise<boolean> {
+  return writeJsonIfMissing(configPath(root), defaultConfig(specBackend));
 }
 
 export async function hasConfig(root: string): Promise<boolean> {

@@ -54,7 +54,7 @@ export function buildProgram(): Command {
 
   program
     .name(TOOL.cliName)
-    .description(`${TOOL.displayName}: AI-first OpenSpec companion for shared human and agent coding sessions.`)
+    .description(`${TOOL.displayName}: AI-first project governance with a native ledger or OpenSpec backend.`)
     .version(TOOL.version)
     .option("--headless", HEADLESS_OPTION_DESCRIPTION);
 

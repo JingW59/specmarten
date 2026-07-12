@@ -7,7 +7,7 @@ import type { AgentRunner } from "../src/adapters/agent/types.js";
 import { registerInitCommand, runInit } from "../src/commands/init.js";
 import { readJson, pathExists } from "../src/util/fs.js";
 import { collectPhases, stateSchema } from "../src/core/state/schema.js";
-import { configSchema } from "../src/config/config.js";
+import { configSchema, defaultConfig } from "../src/config/config.js";
 import { codexSkillTemplates, SPECMARTEN_PLAN_SKILL_NAME } from "../src/hooks/codex-skills.js";
 import { claudeTemplateFiles } from "../src/templates/index.js";
 import { SPECMARTEN_CONTEXT_VERSION } from "../src/core/context/plan-context.js";
@@ -26,6 +26,10 @@ afterEach(() => {
 });
 
 describe("init", () => {
+  it("uses the native backend as the product default", () => {
+    expect(defaultConfig().specBackend).toBe("native");
+  });
+
   it("fills defaults for minimal hand-written config", () => {
     const config = configSchema.parse({ specBackend: "openspec" });
 
@@ -44,15 +48,28 @@ describe("init", () => {
     expect(match?.[1]).toBeTruthy();
     const config = configSchema.parse(JSON.parse(match?.[1] ?? "{}"));
 
-    expect(config.specBackend).toBe("openspec");
+    expect(config.specBackend).toBe("native");
     expect(config.maintain.autoRenderViews).toBe(true);
     expect(config.backfill.useGit).toBe(true);
   });
 
-  it("fails clearly when no OpenSpec project is present", async () => {
+  it("initializes the native backend when no OpenSpec project is present", async () => {
     const root = await tempRoot();
 
-    await expect(runInit({ root, noClaude: true, noGitHook: true })).rejects.toThrow(
+    const summary = await runInit({ root, noClaude: true, noCodex: true, noGitHook: true });
+
+    expect(summary.projectType).toBe("greenfield");
+    expect(await pathExists(join(root, "openspec"))).toBe(false);
+    expect(await pathExists(join(root, "specmarten", "ledger", "changes", "archive"))).toBe(true);
+    expect(await pathExists(join(root, "specmarten", "ledger", "specs"))).toBe(true);
+    const config = configSchema.parse(await readJson(join(root, ".specmarten.json")));
+    expect(config.specBackend).toBe("native");
+  });
+
+  it("fails clearly when the OpenSpec backend is selected but missing", async () => {
+    const root = await tempRoot();
+
+    await expect(runInit({ root, backend: "openspec", noClaude: true, noGitHook: true })).rejects.toThrow(
       "Run `openspec init` first"
     );
   });
@@ -451,7 +468,7 @@ specmarten status
     await expect(readFile(join(root, "AGENTS.md"), "utf8")).resolves.toContain("$specmarten-status");
     await expect(readFile(join(root, "AGENTS.md"), "utf8")).resolves.toContain("openspec/changes/<change-id>/");
     await expect(readFile(join(root, "AGENTS.md"), "utf8")).resolves.toContain(
-      "do not edit `openspec/specs/` directly"
+      "or `specmarten/ledger/changes/<change-id>/` for the native backend"
     );
     await expect(readFile(join(root, "AGENTS.md"), "utf8")).resolves.toContain("Keep this.");
     expect(await pathExists(join(root, ".codex", "hooks.json"))).toBe(false);

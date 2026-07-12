@@ -1,5 +1,5 @@
 export function renderGlobalContextCheckpoint(statusCommand: string): string {
-  return `Before deep work on one OpenSpec change or after a long session, run ${statusCommand} to keep current stream, remaining tasks, and maintenance signals in view. Treat this as read-only context; do not edit \`specmarten/state.json\` directly. If the next step is unclear, run \`specmarten next\`.`;
+  return `Before deep work on one change or after a long session, run ${statusCommand} to keep current stream, remaining tasks, and maintenance signals in view. Treat this as read-only context; do not edit \`specmarten/state.json\` directly. If the next step is unclear, run \`specmarten next\`.`;
 }
 
 export const CLAUDE_GLOBAL_CONTEXT_CHECKPOINT = renderGlobalContextCheckpoint("`specmarten status --summary-json`");
