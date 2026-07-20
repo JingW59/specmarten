@@ -3,7 +3,7 @@ export const TOOL = {
   cliName: "specmarten",
   configFile: ".specmarten.json",
   dataDir: "specmarten",
-  version: "0.2.0"
+  version: "0.3.0"
 } as const;
 
 export const GENERATED_HEADER =

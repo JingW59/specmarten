@@ -62,7 +62,9 @@ describe("init", () => {
     expect(await pathExists(join(root, "openspec"))).toBe(false);
     expect(await pathExists(join(root, "specmarten", "ledger", "changes", "archive"))).toBe(true);
     expect(await pathExists(join(root, "specmarten", "ledger", "specs"))).toBe(true);
-    const config = configSchema.parse(await readJson(join(root, ".specmarten.json")));
+    const projectConfig = await readJson(join(root, ".specmarten.json"));
+    expect(projectConfig).toEqual({ specBackend: "native" });
+    const config = configSchema.parse(projectConfig);
     expect(config.specBackend).toBe("native");
   });
 

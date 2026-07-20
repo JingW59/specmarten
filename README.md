@@ -217,7 +217,8 @@ repository or npm package:
 
 ## Configuration
 
-`specmarten init` writes `.specmarten.json`. The most commonly changed fields are:
+`specmarten init` writes a project-level `.specmarten.json` containing the selected
+`specBackend`. Projects can also set any preference explicitly:
 
 ```json
 {
@@ -233,6 +234,32 @@ Use `"openspec"` for repositories whose change ledger remains under `openspec/`.
 One repository selects one backend; SpecMarten does not dual-write or synchronize
 the two ledgers. `language.content` controls the language for future generated content. Existing
 roadmap/task text is preserved.
+
+### Global preferences
+
+Shared user preferences can be placed in a global `config.json`. SpecMarten checks:
+
+1. `SPECMARTEN_CONFIG` when it names an explicit file.
+2. `$XDG_CONFIG_HOME/specmarten/config.json` when `XDG_CONFIG_HOME` is set.
+3. `%APPDATA%/specmarten/config.json` on Windows.
+4. `~/.config/specmarten/config.json` otherwise.
+
+The global file is optional and can contain any preference except `specBackend`,
+which always belongs to one project. For example:
+
+```json
+{
+  "agent": { "prefer": ["codex", "claude"] },
+  "dashboard": { "autoOpen": false },
+  "language": { "content": "en" },
+  "overseer": { "blocking": "advisory" }
+}
+```
+
+Effective configuration is merged by field in this order: built-in defaults,
+global preferences, then project configuration. Existing full project files remain
+compatible; their explicit values continue to override the global file. Remove a
+project preference when that project should inherit the corresponding global value.
 
 ## Guarantees
 

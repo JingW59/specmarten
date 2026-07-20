@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.0 - 2026-07-20
+
+### Added
+
+- Added optional user-level global preferences through `SPECMARTEN_CONFIG`, XDG config, Windows `%APPDATA%`, or `~/.config/specmarten/config.json`.
+- Added strict validation and clear user-facing errors for malformed or unsupported global configuration.
+
+### Changed
+
+- Effective configuration now merges built-in defaults, global preferences, and project configuration in that order, with project values taking precedence.
+- `specBackend` remains project-only, and new project configuration files persist only the selected backend so other preferences can inherit globally.
+- Project preference writes preserve inheritance instead of materializing unrelated global or built-in values into `.specmarten.json`.
+
 ## 0.2.0 - 2026-07-12
 
 ### Added
