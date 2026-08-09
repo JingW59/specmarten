@@ -11,5 +11,6 @@ export function registerPromoteCommand(program: Command): void {
       console.log(`${TOOL.displayName} promoted draft state.`);
       console.log(`State: ${summary.statePath}`);
       console.log(`Generated: ${TOOL.dataDir}/roadmap.md, ${TOOL.dataDir}/dashboard.html`);
+      console.log(`Next: start the next change, or run \`${TOOL.cliName} next\` for guidance.`);
     });
 }

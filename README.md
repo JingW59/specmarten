@@ -39,98 +39,91 @@ node bin/specmarten.js --help
 
 ## Start
 
-For a new native SpecMarten project with no OpenSpec dependency:
+Initialize SpecMarten in your repository:
 
 ```sh
 specmarten init
 ```
 
-In a repository that already has `openspec/`, the existing backend is detected automatically:
-
-```sh
-specmarten init
-```
-
-To explicitly bootstrap an OpenSpec project instead:
-
-```sh
-specmarten init --bootstrap
-```
-
-For smoke tests or repos where you do not want Codex, Claude Code, or git hook
-files installed yet:
-
-```sh
-specmarten init --minimal
-```
-
-`init` creates the SpecMarten layer, renders the first views, writes
-`.specmarten.json`, and installs supported AI-session files when the matching
-tool is detected. Use `--no-codex`, `--no-claude`, or `--minimal` to skip those
-integrations.
+That's the whole setup. `init` detects an existing `openspec/` directory and
+selects the OpenSpec backend automatically; otherwise it bootstraps the native
+ledger. It renders the first views, writes `.specmarten.json`, and installs
+AI-session files (Codex, Claude Code, git hook) when the matching tool is
+detected. Use `--minimal` to skip integrations, or `--bootstrap` to force an
+OpenSpec project.
 
 See [Native backend architecture and workflow](docs/native-backend.md) for the
 data model, backend-selection rules, lifecycle, compatibility boundary, and
 verification gates. A minimal walkthrough is available in
 [`examples/native-sample/`](examples/native-sample/).
 
-## Main AI Path
+## How it works
 
-Use the installed skills from Codex:
+SpecMarten is **client-first by default**: the current AI session does the
+semantic work, while the CLI provides deterministic context, validation, state
+writes, and generated views. Headless/automation mode is available but optional
+(see [Advanced](#advanced)).
 
-```text
-$specmarten-run add the next feature or fix
-$specmarten-plan describe the product or next milestone
-$specmarten-backfill
-$specmarten-maintain
-$specmarten-check <change-id>
-$specmarten-status
+The project layer has three zoom levels — you don't need all of them to start:
+
+```
+Roadmap (macro)        Streams → Phases → Tasks
+                          │        │        └── linked to ──┐
+                          │        │                         │
+Change ledger (micro)  proposal.md, tasks.md, spec deltas ◀─┘
+                          │
+Generated views        specmarten/roadmap.md, dashboard.html, baseline/
 ```
 
-`$specmarten-run` is the end-to-end path: it creates or updates a change in the
-configured ledger, implements the code, runs verification, refreshes SpecMarten state,
-renders views, and reports the result. It does not commit, tag, publish, or push
-unless you explicitly ask for that.
+- A **change** (proposal + tasks + spec deltas) is the unit of work.
+- A **roadmap** (streams → phases → tasks) links changes to direction.
+- **Generated views** (`roadmap.md`, `dashboard.html`) are read-only outputs.
 
-## Manual Path
+You can start with just a change ledger and add the roadmap later — empty
+streams are a first-class state.
 
-When operating by hand, start here:
+## Workflow
+
+The shortest rule: **run `specmarten next` and follow the one command it prints.**
+
+Every lifecycle command prints its recommended next step, so you rarely need to
+memorize the full set. The common path is:
 
 ```sh
-specmarten next
-specmarten status
-specmarten doctor
-specmarten dashboard
-specmarten closeout
-specmarten archive <change-id>
-specmarten maintain
-specmarten check <change-id>
-specmarten validate
-specmarten validate --fix
-specmarten validate --complete
+specmarten init              # one-time setup
+$specmarten-plan ...         # draft the roadmap (AI session), then:
+specmarten promote           # accept the draft
+
+# per change:
+$specmarten-run ...          # end-to-end: change + code + verify + refresh
+specmarten archive <id>      # native: move the change into the archive
+specmarten closeout          # reconcile, refresh baseline, validate
 ```
 
-The shortest rule is: run `specmarten next` and follow the one command it prints.
+`$specmarten-run` is the end-to-end AI path: it creates or updates a change in
+the configured ledger, implements the code, runs verification, refreshes
+SpecMarten state, renders views, and reports the result. It does not commit,
+tag, publish, or push unless you explicitly ask for that.
 
-Common meanings:
+### Commands
+
+Top-level commands are grouped in `specmarten --help`. The high-frequency ones:
 
 | Command | Purpose |
 | --- | --- |
-| `next` | Prints the next recommended action for the current SpecMarten and change-ledger state. |
-| `status` | Read-only progress, drift, and maintenance snapshot. Use `--summary-json` for compact automation output without full diffs. |
-| `doctor` | Read-only CLI provenance: version, commit, package path, remote, and build time. |
-| `dashboard` | Regenerates `specmarten/dashboard.html`; use `dashboard --serve` for a local writable language preference bridge. |
-| `closeout` | After a change archive: reconcile, render, refresh baseline, and validate. |
-| `archive <change>` | Native backend: move a change into the date-prefixed archive. Defaults to today; use `--date YYYY-MM-DD` to override. |
-| `maintain` | Deterministic reconcile and render; use the skill or `--headless` for semantic maintenance. |
-| `check <change>` | Builds check context; `--headless` can run the local agent path for automation. |
-| `validate` | Validates state, generated views, config, available agents, and baseline. |
-| `validate --fix` | Regenerates stale generated views, then validates again. JSON output reports `viewsFixed`, reserved `stateFixed`, and remaining issues. |
-| `validate --complete` | Completion gate: fails if active change checklists are unfinished or SpecMarten state still needs reconciliation. |
+| `next` | Prints the next recommended action for the current state. Start here when unsure. |
+| `init` | One-time setup; detects OpenSpec or bootstraps native. |
+| `status` | Read-only progress, drift, and maintenance snapshot. `--summary-json` for automation. |
+| `validate` | Validates state, generated views, config, agents, and baseline. `--fix` regenerates stale views; `--complete` gates on finished checklists. |
+| `dashboard` | Regenerates `specmarten/dashboard.html`; `--serve` for a local writable language bridge. |
+| `archive <id>` | Native backend: move a change into the date-prefixed archive (default today; `--date YYYY-MM-DD` to override). |
+| `closeout` | After archive: reconcile, render, refresh baseline, and validate in one step. |
 
-Advanced protocol commands such as `context`, `state`, `render`, `reconcile`,
-`baseline`, and `patrol` are still available for skills, hooks, and automation,
-but they are intentionally hidden from the top-level help.
+The lifecycle group (`plan`, `backfill`, `maintain`, `check`, `promote`,
+`new-stream`) and inspection group (`doctor`, `update`) round out the visible
+commands. Advanced protocol commands (`context`, `state`, `render`, `reconcile`,
+`baseline`, `patrol`) are available for skills, hooks, and automation but
+hidden from `--help`.
 
 ## Typical Lifecycle
 
@@ -193,10 +186,12 @@ Review the generated roadmap/dashboard, then run:
 specmarten promote
 ```
 
-## Headless Automation
+## Advanced
 
-Interactive usage is client-first and does not auto-launch a model. Automation
-can opt into a local bring-your-own-agent CLI:
+### Headless automation
+
+Interactive usage is client-first and never auto-launches a model. For CI or
+unattended automation you can opt into a local bring-your-own-agent CLI:
 
 ```sh
 specmarten plan "build login" --headless
@@ -206,20 +201,14 @@ specmarten check add-login --headless
 ```
 
 `SPECMARTEN_HEADLESS=1` enables the same mode for unattended environments.
-
 Headless mode sends repository context to the configured local agent CLI
-(`codex`, `claude`, or `gemini`). Use it only in trusted, isolated automation.
-For untrusted pull requests, prefer deterministic checks.
+(`codex`, `claude`, or `gemini`) — use it only in trusted, isolated automation.
+For untrusted pull requests, prefer the deterministic checks below. Claude support is Claude Code-only; Claude Desktop is not a supported integration target.
 
-Claude support is Claude Code-only. Claude Desktop is not a supported integration target.
-
-## CI
+### CI drift gates
 
 For SpecMarten's own repo, `.github/workflows/ci.yml` runs typecheck, build,
-tests, and package checks. OpenSpec projects may add native OpenSpec validation.
-
-For projects that want a copyable drift gate, see `examples/ci/` in this
-repository or npm package:
+tests, and package checks. Projects that want a copyable drift gate can use:
 
 - deterministic layer: `specmarten validate`
 - optional semantic layer: `specmarten check <change> --headless`

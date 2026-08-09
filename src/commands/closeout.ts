@@ -41,6 +41,7 @@ export function registerCloseoutCommand(program: Command, deps: { createAgent?: 
           );
         } else {
           console.log(`${TOOL.displayName} closeout: complete.`);
+          console.log(`Next: run \`${TOOL.cliName} next\` to see the recommended next step.`);
         }
       }
 
