@@ -1,4 +1,4 @@
-import { Command } from "commander";
+import { Command, Help } from "commander";
 import { TOOL } from "./constants.js";
 import { registerArchiveCommand } from "./commands/archive.js";
 import { registerBackfillCommand } from "./commands/backfill.js";
@@ -27,28 +27,44 @@ import { installBrokenPipeHandlers } from "./util/stdio.js";
 
 installBrokenPipeHandlers();
 
-const COMMANDS: Array<{ register: (program: Command) => void; name: string; advanced?: boolean }> = [
-  { register: registerArchiveCommand, name: "archive" },
-  { register: registerInitCommand, name: "init" },
-  { register: registerBaselineCommand, name: "baseline", advanced: true },
-  { register: registerBackfillCommand, name: "backfill" },
-  { register: registerCloseoutCommand, name: "closeout" },
-  { register: registerDoctorCommand, name: "doctor" },
-  { register: registerMaintainCommand, name: "maintain" },
-  { register: registerNewStreamCommand, name: "new-stream" },
-  { register: registerNextCommand, name: "next" },
-  { register: registerPlanCommand, name: "plan" },
-  { register: registerPatrolCommand, name: "patrol", advanced: true },
-  { register: registerContextCommand, name: "context", advanced: true },
-  { register: registerRenderCommand, name: "render", advanced: true },
-  { register: registerPromoteCommand, name: "promote" },
-  { register: registerReconcileCommand, name: "reconcile", advanced: true },
-  { register: registerStateCommand, name: "state", advanced: true },
-  { register: registerStatusCommand, name: "status" },
-  { register: registerDashboardCommand, name: "dashboard" },
-  { register: registerValidateCommand, name: "validate" },
-  { register: registerCheckCommand, name: "check" },
-  { register: registerUpdateCommand, name: "update" }
+type CommandGroup = "start" | "lifecycle" | "inspection";
+
+interface CommandEntry {
+  register: (program: Command) => void;
+  name: string;
+  group: CommandGroup;
+  advanced?: boolean;
+}
+
+const COMMANDS: CommandEntry[] = [
+  { register: registerInitCommand, name: "init", group: "start" },
+  { register: registerNextCommand, name: "next", group: "start" },
+  { register: registerStatusCommand, name: "status", group: "start" },
+  { register: registerPlanCommand, name: "plan", group: "lifecycle" },
+  { register: registerBackfillCommand, name: "backfill", group: "lifecycle" },
+  { register: registerMaintainCommand, name: "maintain", group: "lifecycle" },
+  { register: registerCheckCommand, name: "check", group: "lifecycle" },
+  { register: registerArchiveCommand, name: "archive", group: "lifecycle" },
+  { register: registerCloseoutCommand, name: "closeout", group: "lifecycle" },
+  { register: registerPromoteCommand, name: "promote", group: "lifecycle" },
+  { register: registerNewStreamCommand, name: "new-stream", group: "lifecycle" },
+  { register: registerValidateCommand, name: "validate", group: "inspection" },
+  { register: registerDashboardCommand, name: "dashboard", group: "inspection" },
+  { register: registerDoctorCommand, name: "doctor", group: "inspection" },
+  { register: registerUpdateCommand, name: "update", group: "inspection" },
+  // Advanced/internal commands: hidden from top-level help, available for skills, hooks, and automation.
+  { register: registerBaselineCommand, name: "baseline", group: "inspection", advanced: true },
+  { register: registerPatrolCommand, name: "patrol", group: "inspection", advanced: true },
+  { register: registerContextCommand, name: "context", group: "inspection", advanced: true },
+  { register: registerRenderCommand, name: "render", group: "inspection", advanced: true },
+  { register: registerReconcileCommand, name: "reconcile", group: "inspection", advanced: true },
+  { register: registerStateCommand, name: "state", group: "inspection", advanced: true }
+];
+
+const GROUP_LABELS: Array<{ group: CommandGroup; label: string }> = [
+  { group: "start", label: "Getting started" },
+  { group: "lifecycle", label: "Changes & lifecycle" },
+  { group: "inspection", label: "Inspection & views" }
 ];
 
 export function buildProgram(): Command {
@@ -63,18 +79,63 @@ export function buildProgram(): Command {
   for (const command of COMMANDS) {
     command.register(program);
   }
-  simplifyTopLevelHelp(program);
+  configureGroupedHelp(program);
 
   return program;
 }
 
-function simplifyTopLevelHelp(program: Command): void {
-  const help = program.createHelp();
+/**
+ * Reorganises the top-level --help so the visible commands read as three
+ * focused groups instead of an alphabetical wall. Subcommand help is untouched.
+ * Advanced/internal commands are marked hidden on the commander instance so the
+ * default visibility logic filters them, and are grouped out of the help block.
+ */
+function configureGroupedHelp(program: Command): void {
   const advanced = new Set(COMMANDS.filter((command) => command.advanced).map((command) => command.name));
+
+  // Hide advanced subcommands via commander's native _hidden flag so every
+  // visibility/completion path (not just our help formatter) agrees.
+  for (const sub of program.commands) {
+    if (advanced.has(sub.name())) {
+      (sub as Command & { _hidden?: boolean })._hidden = true;
+    }
+  }
+
+  const visibleByGroup = new Map<CommandGroup, Command[]>();
+  for (const { group, name } of COMMANDS) {
+    if (advanced.has(name)) continue;
+    const sub = program.commands.find((cmd) => cmd.name() === name);
+    if (!sub) continue;
+    const bucket = visibleByGroup.get(group) ?? [];
+    bucket.push(sub);
+    visibleByGroup.set(group, bucket);
+  }
+
   program.configureHelp({
-    visibleCommands(command) {
-      const commands = help.visibleCommands(command);
-      return command === program ? commands.filter((item) => !advanced.has(item.name())) : commands;
+    // Replace the flat "Commands:" block with one section per group. We call the
+    // prototype formatter for everything else and only rewrite the tail.
+    formatHelp(command, helper) {
+      const base = Help.prototype.formatHelp(command, helper);
+      if (command !== program || typeof base !== "string") return base;
+
+      const termWidth = Math.max(
+        helper.padWidth(command, helper),
+        ...[...visibleByGroup.values()].flat().map((cmd) => helper.subcommandTerm(cmd).length)
+      );
+      const sections = GROUP_LABELS.map(({ group, label }) => {
+        const commands = visibleByGroup.get(group) ?? [];
+        if (commands.length === 0) return "";
+        const items = commands.map((cmd) =>
+          helper.wrap(
+            `${helper.subcommandTerm(cmd).padEnd(termWidth + 2)}${helper.subcommandDescription(cmd)}`,
+            (helper.helpWidth || 80) - 2,
+            termWidth + 2
+          )
+        );
+        return `${label}:\n${items.map((item) => `  ${item.replace(/\n/g, "\n  ")}`).join("\n")}`;
+      }).filter(Boolean);
+
+      return base.replace(/Commands:\n[\s\S]*$/, sections.join("\n\n"));
     }
   });
 }
