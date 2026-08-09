@@ -196,8 +196,7 @@ specmarten status --summary-json
 If the change is accepted and should be archived in this task:
 
 - OpenSpec backend: use the native OpenSpec apply/archive workflow.
-- Native backend: semantically update accepted specs under \`specmarten/ledger/specs/\`, then move the completed change to \`specmarten/ledger/changes/archive/<date>-<change-id>/\`.
-- There is no \`specmarten archive\` command; native archive is the AI-managed directory move above, followed by \`specmarten closeout\`.
+- Native backend: semantically update accepted specs under \`specmarten/ledger/specs/\`, then run \`specmarten archive <change-id>\` (date defaults to today; use \`--date YYYY-MM-DD\` to override), followed by \`specmarten closeout\`. The semantic spec-accept step is yours; the archive command performs the deterministic directory move.
 
 7. Maintain SpecMarten state semantically:
 

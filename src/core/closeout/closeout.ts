@@ -5,6 +5,7 @@ import { refreshBaseline, type BaselineRefreshSummary } from "../baseline.js";
 import { runMaintain, type MaintainSummary } from "../maintenance/maintain.js";
 import { runReconcile, type ReconcileSummary } from "../reconcile/reconcile.js";
 import { runValidate, type ValidationIssue, type ValidationSummary } from "../validate/validate.js";
+import { VALIDATION_CODE } from "../validate/codes.js";
 
 export interface CloseoutOptions {
   root: string;
@@ -23,25 +24,25 @@ export interface CloseoutSummary {
   exitCode: number;
 }
 
-const CLOSEOUT_BLOCKING_WARNINGS = new Set([
-  "baseline-drift",
-  "change-active-unlinked",
-  "change-archived-unlinked",
-  "openspec-active-unlinked",
-  "openspec-archived-unlinked",
-  "purpose-tbd",
-  "roadmap-stale",
-  "dashboard-stale"
+// Warn-level codes that block a clean closeout once the baseline has refreshed.
+// Drift after a refresh signals a genuine problem (specs changed mid-closeout,
+// or the refresh failed silently), so it blocks here.
+const CLOSEOUT_BLOCKING_WARNINGS: Set<string> = new Set([
+  VALIDATION_CODE.BaselineDrift,
+  VALIDATION_CODE.ChangeActiveUnlinked,
+  VALIDATION_CODE.ChangeArchivedUnlinked,
+  VALIDATION_CODE.OpenSpecActiveUnlinked,
+  VALIDATION_CODE.OpenSpecArchivedUnlinked,
+  VALIDATION_CODE.PurposeTbd,
+  VALIDATION_CODE.RoadmapStale,
+  VALIDATION_CODE.DashboardStale
 ]);
-const PRE_BASELINE_BLOCKING_WARNINGS = new Set([
-  "change-active-unlinked",
-  "change-archived-unlinked",
-  "openspec-active-unlinked",
-  "openspec-archived-unlinked",
-  "purpose-tbd",
-  "roadmap-stale",
-  "dashboard-stale"
-]);
+// Pre-baseline, drift is the expected normal state — closeout exists to resolve
+// it. Derived from the full set rather than re-listed, so the two can never
+// silently drift apart.
+const PRE_BASELINE_BLOCKING_WARNINGS: Set<string> = new Set(
+  [...CLOSEOUT_BLOCKING_WARNINGS].filter((code) => code !== VALIDATION_CODE.BaselineDrift)
+);
 
 export async function runCloseout(options: CloseoutOptions): Promise<CloseoutSummary> {
   if (options.headless) {

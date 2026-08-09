@@ -38,8 +38,8 @@ describe("Codex skills", () => {
     expect(skill).toContain("The current Codex session owns the full task");
     expect(skill).toContain("openspec/changes/<change-id>/");
     expect(skill).toContain("specmarten/ledger/changes/<change-id>/");
-    expect(skill).toContain("specmarten/ledger/changes/archive/<date>-<change-id>/");
-    expect(skill).toContain("There is no `specmarten archive` command");
+    expect(skill).toContain("specmarten archive <change-id>");
+    expect(skill).toContain("The semantic spec-accept step is yours");
     expect(skill).toContain("specmarten context --workflow maintain --json");
     expect(skill).toContain("specmarten state write-draft --kind maintain");
     expect(skill).toContain("`ledger`");

@@ -1,12 +1,11 @@
 import { Command } from "commander";
-import { createSpecBackend } from "../adapters/spec-backend/factory.js";
-import { readConfig } from "../config/config.js";
 import {
   formatStatus,
   runStatus,
   serializeStatusMaintainSignal,
   statusSummaryJson
 } from "../core/status/status.js";
+import { resolveConfigAndBackend } from "./runtime-context.js";
 
 export function registerStatusCommand(program: Command): void {
   program
@@ -16,8 +15,7 @@ export function registerStatusCommand(program: Command): void {
     .option("--summary-json", "print compact machine-readable status for automation")
     .action(async (options: { json?: boolean; summaryJson?: boolean }) => {
       const root = process.cwd();
-      const config = await readConfig(root);
-      const backend = createSpecBackend(root, config.specBackend);
+      const { config, backend } = await resolveConfigAndBackend(root);
       const snapshot = await runStatus({ root, backend, config });
 
       if (options.summaryJson) {

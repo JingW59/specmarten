@@ -102,6 +102,7 @@ specmarten status
 specmarten doctor
 specmarten dashboard
 specmarten closeout
+specmarten archive <change-id>
 specmarten maintain
 specmarten check <change-id>
 specmarten validate
@@ -120,6 +121,7 @@ Common meanings:
 | `doctor` | Read-only CLI provenance: version, commit, package path, remote, and build time. |
 | `dashboard` | Regenerates `specmarten/dashboard.html`; use `dashboard --serve` for a local writable language preference bridge. |
 | `closeout` | After a change archive: reconcile, render, refresh baseline, and validate. |
+| `archive <change>` | Native backend: move a change into the date-prefixed archive. Defaults to today; use `--date YYYY-MM-DD` to override. |
 | `maintain` | Deterministic reconcile and render; use the skill or `--headless` for semantic maintenance. |
 | `check <change>` | Builds check context; `--headless` can run the local agent path for automation. |
 | `validate` | Validates state, generated views, config, available agents, and baseline. |
@@ -152,11 +154,20 @@ live under `specmarten/ledger/changes/`; OpenSpec records remain under
 specmarten closeout
 ```
 
-The native backend is file-oriented and AI-session managed in this release.
-When accepting a native change, update the corresponding accepted documents
-under `specmarten/ledger/specs/`, move the change directory under
-`specmarten/ledger/changes/archive/<date>-<change-id>/`, then run `closeout`.
-OpenSpec projects continue to use native OpenSpec apply/archive commands.
+The native backend is file-oriented and AI-session managed. When accepting a
+native change, first update the corresponding accepted documents under
+`specmarten/ledger/specs/`, then archive and close out:
+
+```sh
+specmarten archive <change-id>
+specmarten closeout
+```
+
+`specmarten archive <change-id>` moves the change directory into
+`specmarten/ledger/changes/archive/<date>-<change-id>/` (date defaults to today,
+override with `--date YYYY-MM-DD`). It performs the deterministic directory move
+only; the semantic spec-accept step remains yours. OpenSpec projects continue to
+use native OpenSpec apply/archive commands.
 
 For the OpenSpec backend, if `closeout` reports a spec with `Purpose: TBD`, edit
 the accepted spec purpose and run `specmarten closeout` again.
@@ -269,7 +280,7 @@ project preference when that project should inherit the corresponding global val
 - SpecMarten state lives in `specmarten/state.json`.
 - Generated views are read-only outputs.
 - Renderers never call an LLM.
-- There is no `specmarten archive`, `specmarten link`, or manual task-linking command.
+- There is no `specmarten link` or manual task-linking command. (`specmarten archive` performs the native directory move; semantic spec-accept is still yours.)
 
 ## Examples
 

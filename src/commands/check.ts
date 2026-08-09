@@ -1,17 +1,15 @@
 import { Command } from "commander";
-import { createSpecBackend } from "../adapters/spec-backend/factory.js";
-import { readConfig } from "../config/config.js";
 import { TOOL } from "../constants.js";
 import { runCheck } from "../core/check/check.js";
 import { buildCheckContext } from "../core/context/check-context.js";
 import { UserFacingError } from "../util/errors.js";
 import {
   HEADLESS_OPTION_DESCRIPTION,
-  isHeadlessRequested,
   maybeCreateHeadlessAgent,
   type AgentName,
   type HeadlessAgent
 } from "./execution-mode.js";
+import { resolveHeadlessContext } from "./runtime-context.js";
 
 type OptionalHeadlessAgentFactory = (prefer: AgentName[]) => Promise<HeadlessAgent | undefined>;
 
@@ -29,7 +27,7 @@ export function registerCheckCommand(
     .action(async (changeArg: string | undefined, options: { change?: string; diff?: string; json?: boolean; headless?: boolean }) => {
       const root = process.cwd();
       const change = options.change ?? changeArg;
-      const headless = isHeadlessRequested(options.headless || program.opts().headless);
+      const { config, backend, headless } = await resolveHeadlessContext(root, program, options);
 
       if (!headless) {
         if (!change) {
@@ -43,11 +41,10 @@ export function registerCheckCommand(
         return;
       }
 
-      const config = await readConfig(root);
       const agent = await (deps.createAgent ?? maybeCreateHeadlessAgent)(config.agent.prefer);
       const summary = await runCheck({
         root,
-        backend: createSpecBackend(root, config.specBackend),
+        backend,
         config,
         agent,
         change,

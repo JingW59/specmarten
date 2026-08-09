@@ -1,9 +1,9 @@
 import { Command } from "commander";
-import { createSpecBackend } from "../adapters/spec-backend/factory.js";
-import { readConfig } from "../config/config.js";
 import { renderViews } from "../core/renderers/index.js";
 import { readState } from "../core/state/store.js";
 import { formatValidation, runValidate, type ValidationIssue } from "../core/validate/validate.js";
+import { VALIDATION_CODE } from "../core/validate/codes.js";
+import { resolveConfigAndBackend } from "./runtime-context.js";
 
 export function registerValidateCommand(program: Command): void {
   program
@@ -14,13 +14,13 @@ export function registerValidateCommand(program: Command): void {
     .option("--complete", "fail when active change checklists are not complete")
     .action(async (options: { json?: boolean; fix?: boolean; complete?: boolean }) => {
       const root = process.cwd();
-      const config = await readConfig(root);
+      const { config, backend } = await resolveConfigAndBackend(root);
       if (options.fix) {
         await renderViews(root, await readState(root));
       }
       const summary = await runValidate({
         root,
-        backend: createSpecBackend(root, config.specBackend),
+        backend,
         config,
         requireComplete: Boolean(options.complete)
       });
@@ -55,33 +55,33 @@ function recommendedCommand(
   viewsFixed: boolean,
   backend: "native" | "openspec"
 ): string | null {
-  if (issues.some((issue) => issue.code === "backend-missing")) {
+  if (issues.some((issue) => issue.code === VALIDATION_CODE.BackendMissing)) {
     return backend === "native" ? "specmarten init --backend native" : "specmarten init --bootstrap";
   }
 
-  if (!viewsFixed && issues.some((issue) => issue.code === "roadmap-stale" || issue.code === "dashboard-stale")) {
+  if (
+    !viewsFixed &&
+    issues.some((issue) => issue.code === VALIDATION_CODE.RoadmapStale || issue.code === VALIDATION_CODE.DashboardStale)
+  ) {
     return "specmarten validate --fix";
   }
 
-  if (issues.some((issue) => issue.code === "specmarten-state-unreconciled")) {
+  if (issues.some((issue) => issue.code === VALIDATION_CODE.StateUnreconciled)) {
     return "specmarten maintain";
   }
 
-  if (
-    issues.some((issue) =>
-      [
-        "change-active-unlinked",
-        "change-archived-unlinked",
-        "openspec-active-unlinked",
-        "openspec-archived-unlinked",
-        "purpose-tbd"
-      ].includes(issue.code)
-    )
-  ) {
+  const maintainCodes: readonly string[] = [
+    VALIDATION_CODE.ChangeActiveUnlinked,
+    VALIDATION_CODE.ChangeArchivedUnlinked,
+    VALIDATION_CODE.OpenSpecActiveUnlinked,
+    VALIDATION_CODE.OpenSpecArchivedUnlinked,
+    VALIDATION_CODE.PurposeTbd
+  ];
+  if (issues.some((issue) => maintainCodes.includes(issue.code))) {
     return "$specmarten-maintain";
   }
 
-  if (issues.some((issue) => issue.code === "baseline-drift")) {
+  if (issues.some((issue) => issue.code === VALIDATION_CODE.BaselineDrift)) {
     return "specmarten closeout";
   }
 

@@ -97,7 +97,7 @@ flowchart LR
   Change["Create change record"] --> Implement["Implement and verify"]
   Implement --> Complete["Complete tasks.md"]
   Complete --> Accept["Update ledger/specs/"]
-  Accept --> Archive["Move to changes/archive/<date>-<id>"]
+  Accept --> Archive["specmarten archive <id>"]
   Archive --> Closeout["specmarten closeout"]
   Closeout --> Reconcile["Reconcile state"]
   Closeout --> Baseline["Refresh baseline"]
@@ -113,7 +113,7 @@ In the first native release, the current AI session owns semantic lifecycle writ
 2. Implement the smallest change and run verification.
 3. Mark the checklist complete.
 4. Semantically update accepted documents under `ledger/specs/`.
-5. Move the change under the date-prefixed archive path.
+5. Run `specmarten archive <change-id>` to move the change under the date-prefixed archive path.
 6. Run `specmarten closeout`.
 
 OpenSpec projects continue to use native OpenSpec propose/apply/archive operations, followed by the same `specmarten closeout` path.
@@ -153,7 +153,7 @@ Native validation uses backend-neutral machine codes: `change-active-unlinked`, 
 - Native and OpenSpec changes are isolated even if both directories exist.
 - Local metadata such as `.DS_Store` is excluded from markers, hashes, and snapshots.
 - Date-prefixed archive folders work at the top level or inside year-grouped directories.
-- Native lifecycle is file-oriented; there is no `specmarten archive` command yet.
+- `specmarten archive <change-id>` performs the deterministic directory move into the archive; the semantic spec-accept step (`ledger/specs/`) remains yours. OpenSpec projects use `openspec archive`.
 - Claude Code's generated post-tool hook intentionally watches both `openspec/` and `specmarten/ledger/` paths so either configured backend can trigger reconciliation.
 - There is no automatic migration, dual-write, or two-way synchronization.
 - Native backend support is available starting with SpecMarten `0.2.0`.

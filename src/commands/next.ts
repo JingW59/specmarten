@@ -1,8 +1,7 @@
 import { Command } from "commander";
-import { createSpecBackend } from "../adapters/spec-backend/factory.js";
-import { readConfig } from "../config/config.js";
 import { TOOL } from "../constants.js";
 import { runNext } from "../core/next/next.js";
+import { resolveConfigAndBackend } from "./runtime-context.js";
 
 export function registerNextCommand(program: Command): void {
   program
@@ -11,8 +10,8 @@ export function registerNextCommand(program: Command): void {
     .option("--json", "print machine-readable next-step guidance")
     .action(async (options: { json?: boolean }) => {
       const root = process.cwd();
-      const config = await readConfig(root);
-      const summary = await runNext({ root, backend: createSpecBackend(root, config.specBackend), config });
+      const { config, backend } = await resolveConfigAndBackend(root);
+      const summary = await runNext({ root, backend, config });
 
       if (options.json) {
         console.log(JSON.stringify(summary, null, 2));

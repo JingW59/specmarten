@@ -1,15 +1,13 @@
 import { Command } from "commander";
-import { createSpecBackend } from "../adapters/spec-backend/factory.js";
-import { readConfig } from "../config/config.js";
 import { TOOL } from "../constants.js";
 import { runBackfill } from "../core/backfill/backfill.js";
 import { buildBackfillContext } from "../core/context/backfill-context.js";
 import {
   createHeadlessAgent,
   HEADLESS_OPTION_DESCRIPTION,
-  isHeadlessRequested,
   type HeadlessAgentFactory
 } from "./execution-mode.js";
+import { resolveHeadlessContext } from "./runtime-context.js";
 
 export function registerBackfillCommand(
   program: Command,
@@ -23,9 +21,7 @@ export function registerBackfillCommand(
     .option("--headless", HEADLESS_OPTION_DESCRIPTION)
     .action(async (options: { promote?: boolean; groupBy?: "capability" | "time" | "flat"; headless?: boolean }) => {
       const root = process.cwd();
-      const config = await readConfig(root);
-      const backend = createSpecBackend(root, config.specBackend);
-      const headless = isHeadlessRequested(options.headless || program.opts().headless);
+      const { config, backend, headless } = await resolveHeadlessContext(root, program, options);
 
       if (!options.promote && !headless) {
         await buildBackfillContext({ root, groupBy: options.groupBy });

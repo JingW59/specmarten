@@ -1,16 +1,14 @@
 import { Command } from "commander";
-import { createSpecBackend } from "../adapters/spec-backend/factory.js";
-import { readConfig } from "../config/config.js";
 import { TOOL } from "../constants.js";
 import { refreshBaseline } from "../core/baseline.js";
 import { runMaintain } from "../core/maintenance/maintain.js";
 import { runReconcile } from "../core/reconcile/reconcile.js";
 import {
   HEADLESS_OPTION_DESCRIPTION,
-  isHeadlessRequested,
   maybeCreateHeadlessAgent,
   type HeadlessAgentFactory
 } from "./execution-mode.js";
+import { resolveHeadlessContext } from "./runtime-context.js";
 
 export function registerMaintainCommand(
   program: Command,
@@ -35,9 +33,7 @@ export function registerMaintainCommand(
         headless?: boolean;
       }) => {
         const root = process.cwd();
-        const config = await readConfig(root);
-        const backend = createSpecBackend(root, config.specBackend);
-        const headless = isHeadlessRequested(options.headless || program.opts().headless);
+        const { config, backend, headless } = await resolveHeadlessContext(root, program, options);
 
         if (!headless) {
           const summary = await runReconcile({

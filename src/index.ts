@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import { TOOL } from "./constants.js";
+import { registerArchiveCommand } from "./commands/archive.js";
 import { registerBackfillCommand } from "./commands/backfill.js";
 import { registerBaselineCommand } from "./commands/baseline.js";
 import { registerCheckCommand } from "./commands/check.js";
@@ -27,6 +28,7 @@ import { installBrokenPipeHandlers } from "./util/stdio.js";
 installBrokenPipeHandlers();
 
 const COMMANDS: Array<{ register: (program: Command) => void; name: string; advanced?: boolean }> = [
+  { register: registerArchiveCommand, name: "archive" },
   { register: registerInitCommand, name: "init" },
   { register: registerBaselineCommand, name: "baseline", advanced: true },
   { register: registerBackfillCommand, name: "backfill" },

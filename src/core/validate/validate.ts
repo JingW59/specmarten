@@ -10,6 +10,7 @@ import { findPurposeTbdIssues, formatPurposeTbdIssue } from "../openspec/purpose
 import { renderDashboardHtml } from "../renderers/dashboard.js";
 import { renderRoadmapMarkdown } from "../renderers/roadmap.js";
 import { readState } from "../state/store.js";
+import { VALIDATION_CODE } from "./codes.js";
 
 export interface ValidationIssue {
   level: "error" | "warn";
@@ -43,7 +44,7 @@ export async function runValidate(options: {
     const backendLabel = options.config.specBackend === "native" ? "Native SpecMarten" : "OpenSpec";
     issues.push({
       level: "error",
-      code: "backend-missing",
+      code: VALIDATION_CODE.BackendMissing,
       message: `${backendLabel} backend is not present.`,
       fixCommand:
         options.config.specBackend === "native"
@@ -54,11 +55,11 @@ export async function runValidate(options: {
 
   const roadmapPath = join(options.root, TOOL.dataDir, "roadmap.md");
   const dashboardPath = join(options.root, TOOL.dataDir, "dashboard.html");
-  await compareGeneratedView(roadmapPath, renderRoadmapMarkdown(state), "roadmap-stale", issues);
+  await compareGeneratedView(roadmapPath, renderRoadmapMarkdown(state), VALIDATION_CODE.RoadmapStale, issues);
   await compareGeneratedView(
     dashboardPath,
     renderDashboardHtml(state, { contentLanguage: options.config.language.content }),
-    "dashboard-stale",
+    VALIDATION_CODE.DashboardStale,
     issues
   );
   if (backendPresent) {
@@ -74,7 +75,7 @@ export async function runValidate(options: {
 
   const availableAgents = await detectAvailableAgents(options.config.agent.prefer as AgentName[]);
   if (availableAgents.length === 0) {
-    issues.push({ level: "warn", code: "agent-missing", message: "No claude/codex/gemini CLI detected." });
+    issues.push({ level: "warn", code: VALIDATION_CODE.AgentMissing, message: "No claude/codex/gemini CLI detected." });
   }
 
   if (backendPresent && state.baseline) {
@@ -82,7 +83,7 @@ export async function runValidate(options: {
     if (specsHash !== state.baseline.specsHash) {
       issues.push({
         level: "warn",
-        code: "baseline-drift",
+        code: VALIDATION_CODE.BaselineDrift,
         message: `Current specs hash ${specsHash} differs from baseline ${state.baseline.specsHash}.`,
         fixCommand: `${TOOL.cliName} closeout`
       });
@@ -136,7 +137,7 @@ async function detectPurposeTbdSpecs(backend: SpecBackend, issues: ValidationIss
   for (const issue of purposeIssues) {
     issues.push({
       level: "warn",
-      code: "purpose-tbd",
+      code: VALIDATION_CODE.PurposeTbd,
       message: formatPurposeTbdIssue(issue),
       fixCommand: issue.fixCommand
     });
@@ -160,7 +161,7 @@ async function detectBackendStateMismatches(
     if (hasDeterministicReconcileChanges(state, reconciled)) {
       issues.push({
         level: "error",
-        code: "specmarten-state-unreconciled",
+        code: VALIDATION_CODE.StateUnreconciled,
         message: "SpecMarten state is not reconciled with current change checklist progress.",
         fixCommand: `${TOOL.cliName} maintain`
       });
@@ -210,15 +211,15 @@ function detectIncompleteActiveChecklists(
 function changeValidationCodes(backend: SpecMartenConfig["specBackend"]): ChangeValidationCodes {
   if (backend === "native") {
     return {
-      activeUnlinked: "change-active-unlinked",
-      archivedUnlinked: "change-archived-unlinked",
-      activeIncomplete: "change-active-incomplete"
+      activeUnlinked: VALIDATION_CODE.ChangeActiveUnlinked,
+      archivedUnlinked: VALIDATION_CODE.ChangeArchivedUnlinked,
+      activeIncomplete: VALIDATION_CODE.ChangeActiveIncomplete
     };
   }
 
   return {
-    activeUnlinked: "openspec-active-unlinked",
-    archivedUnlinked: "openspec-archived-unlinked",
-    activeIncomplete: "openspec-active-incomplete"
+    activeUnlinked: VALIDATION_CODE.OpenSpecActiveUnlinked,
+    archivedUnlinked: VALIDATION_CODE.OpenSpecArchivedUnlinked,
+    activeIncomplete: VALIDATION_CODE.OpenSpecActiveIncomplete
   };
 }

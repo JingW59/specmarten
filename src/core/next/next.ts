@@ -2,6 +2,7 @@ import type { SpecBackend } from "../../adapters/spec-backend/types.js";
 import type { SpecMartenConfig } from "../../config/config.js";
 import { runStatus } from "../status/status.js";
 import { runValidate } from "../validate/validate.js";
+import { VALIDATION_CODE } from "../validate/codes.js";
 
 export interface NextStepSummary {
   command: string;
@@ -22,7 +23,7 @@ export async function runNext(options: {
   const issueCodes = new Set(validation.issues.map((issue) => issue.code));
   const backendLabel = options.config.specBackend === "native" ? "native ledger" : "OpenSpec";
 
-  if (issueCodes.has("backend-missing")) {
+  if (issueCodes.has(VALIDATION_CODE.BackendMissing)) {
     return {
       command: options.config.specBackend === "native" ? "specmarten init --backend native" : "specmarten init --bootstrap",
       reason: `The configured ${backendLabel} backend is missing.`,
@@ -47,17 +48,17 @@ export async function runNext(options: {
   }
 
   if (status.maintain.needsReconcile) {
-    const command = issueCodes.has("baseline-drift") ? "specmarten closeout" : "specmarten maintain";
+    const command = issueCodes.has(VALIDATION_CODE.BaselineDrift) ? "specmarten closeout" : "specmarten maintain";
     return {
       command,
       reason: `The ${backendLabel} changed since the last SpecMarten maintenance pass.`,
-      details: issueCodes.has("baseline-drift")
+      details: issueCodes.has(VALIDATION_CODE.BaselineDrift)
         ? ["This reconciles linked changes, regenerates views, refreshes the accepted baseline, and validates."]
         : ["This reconciles linked changes and regenerates generated views."]
     };
   }
 
-  if (issueCodes.has("roadmap-stale") || issueCodes.has("dashboard-stale")) {
+  if (issueCodes.has(VALIDATION_CODE.RoadmapStale) || issueCodes.has(VALIDATION_CODE.DashboardStale)) {
     return {
       command: "specmarten validate --fix",
       reason: "Generated views are stale or missing.",
@@ -65,7 +66,7 @@ export async function runNext(options: {
     };
   }
 
-  if (issueCodes.has("baseline-drift")) {
+  if (issueCodes.has(VALIDATION_CODE.BaselineDrift)) {
     return {
       command: "specmarten closeout",
       reason: `Current ${backendLabel} specs differ from the accepted SpecMarten baseline.`,

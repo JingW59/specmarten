@@ -1,8 +1,7 @@
 import { Command } from "commander";
-import { createSpecBackend } from "../adapters/spec-backend/factory.js";
-import { readConfig } from "../config/config.js";
 import { TOOL } from "../constants.js";
 import { refreshBaseline } from "../core/baseline.js";
+import { resolveConfigAndBackend } from "./runtime-context.js";
 
 export function registerBaselineCommand(program: Command): void {
   const baseline = program.command("baseline").description("Manage the accepted SpecMarten specification baseline.");
@@ -14,10 +13,10 @@ export function registerBaselineCommand(program: Command): void {
     .option("--json", "print machine-readable baseline refresh summary")
     .action(async (options: { render?: boolean; json?: boolean }) => {
       const root = process.cwd();
-      const config = await readConfig(root);
+      const { backend } = await resolveConfigAndBackend(root);
       const summary = await refreshBaseline({
         root,
-        backend: createSpecBackend(root, config.specBackend),
+        backend,
         noRender: options.render === false
       });
 
